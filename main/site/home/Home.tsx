@@ -38,11 +38,6 @@ export default function Home() {
   }, [selected]);
 
   const go = (item: (typeof MENU)[number]) => {
-    if (item.label === "START" || item.label === "ABOUT") {
-      alert("coming soon");
-      return;
-    }
-    
     if (item.href.startsWith("http")) {
       window.open(item.href, "_blank");
     } else {
