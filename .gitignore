@@ -1,4 +1,3 @@
-
 node_modules/
 npm-debug.log*
 yarn-debug.log*
@@ -8,16 +7,12 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
-
 .next/
 out/
 build/
 dist/
-
-
 /build
 /dist
-
 
 .env
 .env.local
@@ -26,14 +21,11 @@ dist/
 .env.production.local
 .env*.local
 
-
 *.log
-
 
 .DS_Store
 Thumbs.db
 desktop.ini
-
 
 .vscode/
 .idea/
@@ -46,7 +38,6 @@ desktop.ini
 *.sublime-project
 *.sublime-workspace
 
-
 __pycache__/
 *.py[cod]
 *$py.class
@@ -57,12 +48,14 @@ env/
 ENV/
 .venv
 
-
 coverage/
 .nyc_output/
 *.coveragerc
 
-
 *.tsbuildinfo
 .cache/
 .parcel-cache/
+
+main/backend/bots.json
+main/backend/history_*.json
+main/llm/

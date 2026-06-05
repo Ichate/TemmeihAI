@@ -1,0 +1,383 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
+:root {
+  --bg: #0a0a0a;
+  --text: #e8e8e8;
+  --dim: #3a3a3a;
+  --accent: #5fcf65;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+}
+
+html, body {
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'VT323', monospace;
+  image-rendering: pixelated;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 3px);
+  z-index: 100;
+}
+
+.pixel {
+  font-family: 'Press Start 2P', monospace;
+}
+
+.blink {
+  animation: blink 1s steps(1) infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+.screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  text-align: center;
+  padding: 1.5rem;
+}
+
+.title {
+  font-size: clamp(1rem, 4vw, 2.5rem);
+  letter-spacing: 0.08em;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.star {
+  color: var(--accent);
+}
+
+.tagline {
+  font-size: clamp(1.2rem, 3vw, 1.5rem);
+  color: var(--text);
+  min-height: 1.5rem;
+  letter-spacing: 0.05em;
+  padding: 0 1rem;
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  margin-top: 1rem;
+  width: 100%;
+  max-width: 320px;
+  padding: 0 1rem;
+}
+
+.item {
+  font-size: clamp(0.6rem, 2vw, 0.9rem);
+  letter-spacing: 0.08em;
+  background: transparent;
+  color: var(--text);
+  border: 2px solid var(--dim);
+  padding: 1rem 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  text-decoration: none;
+  transition: none;
+  width: 100%;
+}
+
+.item:hover, .item:active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.item:hover .heart, .item:active .heart {
+  color: var(--bg);
+}
+
+.heart {
+  color: var(--accent);
+  width: 1rem;
+  display: inline-block;
+}
+
+.footer {
+  position: fixed;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: clamp(0.8rem, 2vw, 1.1rem);
+  color: var(--dim);
+  text-align: center;
+  width: 100%;
+  padding: 0 1rem;
+}
+
+.onboarding {
+  width: 100%;
+  max-width: 500px;
+  padding: 0 1rem;
+}
+
+.progress {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.progress-dot {
+  width: 12px;
+  height: 12px;
+  background: var(--dim);
+  transition: background 0.2s;
+}
+
+.progress-dot.active {
+  background: var(--accent);
+}
+
+.progress-dot.done {
+  background: var(--accent);
+  opacity: 0.5;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.step-icon {
+  font-size: 2.5rem;
+  color: var(--accent);
+}
+
+.step-title {
+  font-size: clamp(1rem, 3vw, 1.4rem);
+  color: var(--accent);
+  letter-spacing: 0.05em;
+}
+
+.step-desc {
+  font-size: clamp(0.9rem, 2.5vw, 1.1rem);
+  color: var(--dim);
+  line-height: 1.4;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  text-align: left;
+}
+
+.input-label {
+  font-size: 0.9rem;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.input {
+  font-family: 'VT323', monospace;
+  font-size: clamp(1.1rem, 3vw, 1.3rem);
+  padding: 1rem;
+  background: transparent;
+  border: 2px solid var(--dim);
+  color: var(--text);
+  outline: none;
+  width: 100%;
+  text-align: center;
+}
+
+.input:focus {
+  border-color: var(--accent);
+}
+
+.input::placeholder {
+  color: var(--dim);
+}
+
+.buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.btn {
+  font-size: clamp(0.6rem, 2vw, 0.8rem);
+  letter-spacing: 0.1em;
+  background: transparent;
+  color: var(--text);
+  border: 2px solid var(--dim);
+  padding: 1rem 2rem;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 120px;
+  justify-content: center;
+}
+
+.btn:hover, .btn:active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.btn.primary:hover, .btn.primary:active {
+  background: var(--text);
+  border-color: var(--text);
+}
+
+.status {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  align-items: center;
+  animation: fadeIn 0.3s ease;
+}
+
+.status-icon {
+  font-size: 3rem;
+}
+
+.status-text {
+  font-size: clamp(1rem, 3vw, 1.3rem);
+  color: var(--accent);
+  line-height: 1.4;
+}
+
+.status-error {
+  color: #ff6b6b;
+}
+
+.content {
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 0 1rem;
+}
+
+.tagline-text {
+  font-size: clamp(1.1rem, 3vw, 1.4rem);
+  color: var(--accent);
+  letter-spacing: 0.05em;
+}
+
+.description {
+  font-size: clamp(1rem, 2.5vw, 1.1rem);
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.features {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  text-align: left;
+  font-size: clamp(0.9rem, 2.5vw, 1rem);
+  color: var(--text);
+}
+
+.features p {
+  line-height: 1.4;
+}
+
+.label-text {
+  color: var(--accent);
+  font-weight: bold;
+}
+
+@media (max-width: 480px) {
+  .screen {
+    padding: 1rem;
+    gap: 1.5rem;
+  }
+
+  .footer {
+    position: relative;
+    margin-top: 2rem;
+    transform: none;
+    left: 0;
+  }
+
+  .buttons {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .btn {
+    width: 100%;
+  }
+
+  .progress-dot {
+    width: 10px;
+    height: 10px;
+  }
+}
+
+@media (min-width: 768px) {
+  .screen {
+    gap: 2.5rem;
+  }
+
+  .onboarding {
+    max-width: 450px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blink {
+    animation: none;
+  }
+
+  .step {
+    animation: none;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 1; transform: none; }
+    to { opacity: 1; transform: none; }
+  }
+}

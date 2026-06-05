@@ -2,113 +2,102 @@
 
 ai bots that actually play minecraft with you.
 
-not just stand there. not just follow you around. actually play like fight, build, craft, cook, grind, talk. like a real player, but it never logs off.
-
----
+not just stand there. not just follow you around. actually talk, fight, build, craft, grind. like a real player, but it never logs off.
 
 ## what it does
 
-you invite a bot to your server and it plays with you. you can talk to it in chat, ask it to go mine some iron, tell it to build a house, or just have it fight alongside you. it's got a brain (llm), legs (pathfinder), and hands (mineflayer).
+you invite a bot to your server and it plays with you. talk to it in chat and it responds with an actual brain behind it. it knows it's in minecraft, knows its own name, remembers conversations, and responds to whoever's talking to it.
 
-- **talks** - real conversations in chat, not just commands
-- **walks** - follows you, navigates on its own
-- **fights** - alongside you or against you (yes really)
-- **crafts** - tell it what you need, it figures out the recipe
-- **cooks** - so you stop dying of hunger mid-build
-- **grinds** - send it off to farm while you do other stuff
-- **builds** - describe something and watch it happen
-
----
-
-## how it works
-
-mineflayer handles the actual minecraft connection and the bot joins like a real player. pathfinder gives it the ability to move around without falling into lava every 5 seconds. the llm is the brain that decides what to do, responds to chat, and plans out tasks with toolcalls etc. nextjs frontend is where you can control everything.
-
-```
-your server > mineflayer > pathfinder > llm > bot works and plays with you
-```
-
----
-
-## stack
-
-- **mineflayer** - bot connects to minecraft
-- **mineflayer-pathfinder** - so it can actually walk
-- **llm** (preferably claude since its smart) - the brain
-- **node.js** - runs the whole thing
-- **next.js** - the ui you interact with
-
----
+- **talks** - real conversations powered by claude
+- **remembers** - 50 message rolling history with auto-summarization
+- **knows the game** - it knows it's playing minecraft
+- **custom personality** - give it a system prompt and make it act however you want
+- **walks** - looks at the closest player (pathfinder coming soon)
+- **leaves** - auto-disconnects after 5 minutes
 
 ## setup
 
-### requirements
-
-- node.js 18+
-- a minecraft server (java edition)
-- an llm api key (claude recommended)
-
-### site (frontend)
+### install
 
 ```bash
-cd main/site
+pip install -r requirements.txt
+
+cd main/backend
 npm install
-npm run dev
 ```
 
-runs on localhost:3000
+### run
 
-### demo mode
+```bash
+cd main/backend
+python main.py
+```
 
-the current implementation is a demo. when you click start:
+open http://localhost:3000
 
-1. enter your minecraft server ip
-2. enter the port (default 25565)
-3. pick minecraft version
-4. name your bot
+### connect
 
-the bot joins, says hi, stays for 5 minutes, then leaves.
-
-### rate limiting
-
-- one bot per ip address at a time
-- input validation on all fields
-- automatic cleanup when bot disconnects
-
----
+1. start minecraft server
+2. start backend
+3. open site, go to dashboard
+4. click "create bot"
+5. fill in server ip, port, version, bot name
+6. paste your anthropic api key (get one at console.anthropic.com)
+7. optionally add a system prompt to give the bot a personality
+8. bot joins and starts talking
 
 ## project structure
 
 ```
 main/
-  site/       nextjs frontend + api routes
-  llm/        bot module
-  backend/    (coming soon)
+  site/               html frontend
+    index.html
+    start.html        dashboard
+    about.html
+    css/
+      style.css
+      dashboard.css
+    js/
+      main.js
+      start.js
+  backend/            fastapi + node bot
+    main.py
+    package.json
+    bot/
+      run.js          bot entry, chat listener
+      llm.js          anthropic api calls
+      history.js      rolling chat history + summarization
 ```
 
----
+## how the ai works
 
-## current status
+- each player message goes through claude (sonnet by default)
+- hardcoded system prompt tells the bot it's in minecraft and what its name is
+- user can add their own instructions on top (custom personality)
+- last 50 messages kept in memory per bot session
+- when 50 messages is hit, it summarizes them and starts fresh
+- summary is included in context on next round so it doesn't forget
 
-this is a demo implementation. the bot connects and sends a test message. the full ai brain with pathfinding, combat, crafting etc is still in development.
+## current features
 
-what works now:
-- web ui for connection setup
-- mineflayer integration
-- rate limiting (1 bot per ip)
-- input validation
-- auto disconnect after 5 min
+- fastapi backend
+- mineflayer bot (node subprocess)
+- claude ai chat via anthropic api
+- rolling 50-message history with summarization
+- custom system prompt per bot
+- 1 bot per ip (rate limit)
+- input validation (including api key format check)
+- looks at closest player
+- auto leave after 5 min
+- dashboard with live timer
+- bot history (json)
 
-coming soon:
-- llm integration
-- pathfinder for movement
-- combat system
-- crafting system
-- building system
-- persistent memory
+## coming soon
 
----
+- pathfinder (actually move around)
+- tool calls (mining, crafting, combat, building)
+- longer sessions
 
 ## license
 
-apache 2.0. do whatever you want basically, just keep the license notice.
+apache 2.0
