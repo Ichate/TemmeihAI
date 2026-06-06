@@ -8,51 +8,50 @@ not just stand there. not just follow you around. actually talk, fight, build, c
 
 you invite a bot to your server and it plays with you. talk to it in chat and it responds with an actual brain behind it. it knows it's in minecraft, knows its own name, remembers conversations, and responds to whoever's talking to it.
 
-- **talks** - real conversations powered by claude
-- **remembers** - 50 message rolling history with auto-summarization
-- **knows the game** - it knows it's playing minecraft
-- **custom personality** - give it a system prompt and make it act however you want
-- **walks** - looks at the closest player (pathfinder coming soon)
-- **leaves** - auto-disconnects after 5 minutes
+- talks - real conversations powered by your choice of llm
+- remembers - rolling in-memory history, cleared on disconnect
+- multi-provider - anthropic, openai, openrouter, gemini
+- model picker - verifies your key and lists actual available models
+- custom personality - give it a system prompt and make it act however you want
+- looks at closest player - turns to face whoever is nearby
+- batches messages - if multiple players talk at once, one smart reply to all
+- auto-leaves - disconnects after 5 minutes
+- 1 bot per ip - one session at a time
 
 ## setup
 
-### install
-
 ```bash
 pip install -r requirements.txt
-
-cd main/backend
-npm install
+cd main/backend && npm install
 ```
 
-### run
+then run:
 
 ```bash
 cd main/backend
 python main.py
 ```
 
-open http://localhost:3000
+go to http://localhost:3000
 
-### connect
+## how to use
 
-1. start minecraft server
-2. start backend
-3. open site, go to dashboard
-4. click "create bot"
-5. fill in server ip, port, version, bot name
-6. paste your anthropic api key (get one at console.anthropic.com)
-7. optionally add a system prompt to give the bot a personality
-8. bot joins and starts talking
+1. open the dashboard
+2. click create bot
+3. type in server ip, port, minecraft version, bot name
+4. pick a provider
+5. paste your api key (it verifies it and pulls the real model list)
+6. pick a model
+7. optionally give it a personality
+8. bot joins and starts chatting
 
-## project structure
+## project layout
 
 ```
 main/
-  site/               html frontend
+  site/
     index.html
-    start.html        dashboard
+    start.html          dashboard page
     about.html
     css/
       style.css
@@ -60,37 +59,41 @@ main/
     js/
       main.js
       start.js
-  backend/            fastapi + node bot
-    main.py
-    package.json
+  backend/
+    main.py             server entry point
+    config.py           all the constants
+    logger.py           terminal logging
+    db.py               saves recent bot sessions
+    llm.py              api calls to all providers
+    routes/
+      bot.py            bot endpoints
+      chat.py           chat + key verify endpoints
     bot/
-      run.js          bot entry, chat listener
-      llm.js          anthropic api calls
-      history.js      rolling chat history + summarization
+      run.js            the actual bot, calls apis directly
+      history.js        in-memory chat history
 ```
 
 ## how the ai works
 
-- each player message goes through claude (sonnet by default)
-- hardcoded system prompt tells the bot it's in minecraft and what its name is
-- user can add their own instructions on top (custom personality)
-- last 50 messages kept in memory per bot session
-- when 50 messages is hit, it summarizes them and starts fresh
-- summary is included in context on next round so it doesn't forget
+- player messages are batched (1.2s window) so multiple players get one combined reply
+- bot calls the provider api directly
+- system prompt is hardcoded minecraft context plus whatever personality you set
+- last 40 messages kept in memory per session
+- memory is in-ram only, cleared completely when bot leaves or session ends
 
 ## current features
 
 - fastapi backend
 - mineflayer bot (node subprocess)
-- claude ai chat via anthropic api
-- rolling 50-message history with summarization
+- multi-provider llm support (anthropic, openai, openrouter, gemini)
+- live model fetching on key verify
+- rolling 40-message in-memory history
 - custom system prompt per bot
-- 1 bot per ip (rate limit)
-- input validation (including api key format check)
+- 1 bot per ip
+- input validation
 - looks at closest player
 - auto leave after 5 min
-- dashboard with live timer
-- bot history (json)
+- dashboard with live countdown timer
 
 ## coming soon
 

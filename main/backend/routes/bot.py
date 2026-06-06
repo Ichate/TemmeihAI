@@ -36,17 +36,14 @@ def _check_spawn(ip):
 def build_system(bot_name, user_prompt):
     base = f"""You are a Minecraft bot named {bot_name} playing on a server.
 
-You must respond with ONLY valid JSON in this exact format:
-{{"respond": true or false, "messages": ["message part 1", "message part 2"]}}
-
 Rules:
-- "respond": decide if you should say anything. false if the chat is not meant for you, irrelevant, or you just don't feel like it.
-- "messages": if respond is true, your reply split into natural parts (1-3 short parts). if false, empty array.
-- keep each part short (1-2 sentences), casual, like a real minecraft player.
-- you know your name is {bot_name} and you're playing minecraft.
-- when multiple players talk together, address them all in one reply.
-- never repeat yourself.
-- no markdown. no emotes. just plain chat text."""
+- Keep responses short (1-2 sentences max)
+- Be casual, like a real minecraft player
+- You know your name is {bot_name} and you're playing minecraft
+- When multiple players talk, address them together
+- Never repeat yourself
+- No markdown, no emotes, just plain chat text
+- Always respond to messages"""
     if user_prompt:
         base += f"\n\nPersonality: {user_prompt}"
     return base
@@ -80,7 +77,8 @@ async def get_status(request: Request):
     if ip in active_bots:
         b = active_bots[ip]
         elapsed = int(time.time() - b["start_time"])
-        return {"active": True, "name": b["name"], "target": b["target"], "elapsed": elapsed, "remaining": max(0, 300 - elapsed)}
+        remaining = max(0, 300 - elapsed)
+        return {"active": True, "name": b["name"], "target": b["target"], "elapsed": elapsed, "remaining": remaining}
     return {"active": False}
 
 @router.post("/stop")
@@ -118,12 +116,14 @@ async def create_bot(config: BotConfig, request: Request):
 
     try:
         proc = subprocess.Popen(
-            ["node", str(BOT_DIR / "run.js"), config.ip, str(config.port), config.version,
+            ["node", "--no-warnings", str(BOT_DIR / "run.js"), config.ip, str(config.port), config.version,
              config.botName, config.apiKey, config.provider, config.model, system_prompt],
             cwd=str(BASE_DIR),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            text=True
+            text=True,
+            bufsize=1,
+            env={**__import__("os").environ, "NODE_NO_WARNINGS": "1", "FORCE_COLOR": "0"}
         )
 
         active_bots[ip] = {
