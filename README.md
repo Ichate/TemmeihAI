@@ -1,3 +1,5 @@
+![temmeihAI](banner.png)
+
 # temmeihAI
 
 ai bots that actually play minecraft with you.
@@ -13,6 +15,10 @@ you invite a bot to your server and it plays with you. talk to it in chat and it
 - multi-provider - anthropic, openai, openrouter, gemini
 - model picker - verifies your key and lists actual available models
 - custom personality - give it a system prompt and make it act however you want
+- knows what's around it - health, hunger, position, time, inventory, nearby players/mobs all fed into context
+- auto-eats - eats food from its inventory when hunger gets low
+- reacts to events - comments on taking damage, dying, nightfall, rain, players joining/leaving
+- token + cost meter - tracks tokens used and estimated cost per session on the dashboard
 - looks at closest player - turns to face whoever is nearby
 - batches messages - if multiple players talk at once, one smart reply to all
 - auto-leaves - disconnects after 5 minutes

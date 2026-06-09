@@ -1,4 +1,5 @@
 const PROVIDERS = ["anthropic", "openai", "openrouter", "gemini"];
+const SESSION_OPTIONS = [5, 10, 15, 30];
 const STATIC_STEPS = [
   { id: "ip",      title: "server address",    desc: "where should the bot connect?",  placeholder: "localhost",  def: "" },
   { id: "port",    title: "port",              desc: "usually 25565 for minecraft",     placeholder: "25565",      def: "25565" },
@@ -9,8 +10,9 @@ const STATIC_STEPS = [
 let step = 0;
 let phase = "static";
 let models = [];
-let vals = { ip: "", port: "25565", version: "1.20.4", botName: "temmeihBot", apiKey: "", provider: "", model: "", systemPrompt: "" };
+let vals = { ip: "", port: "25565", version: "1.20.4", botName: "temmeihBot", apiKey: "", provider: "", model: "", systemPrompt: "", sessionMinutes: 5 };
 let timerInterval = null;
+let cooldownInterval = null;
 
 const el = id => document.getElementById(id);
 const fmt = s => `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
@@ -32,6 +34,13 @@ async function init() {
   if (s.active) startTimer();
 }
 
+function usageLine(s) {
+  const tin = s.tokens_in || 0, tout = s.tokens_out || 0;
+  const cost = (s.cost || 0).toFixed(4);
+  const calls = s.calls || 0;
+  return `${calls} calls | ${tin}+${tout} tok | $${cost}`;
+}
+
 function paintDashboard(s) {
   const wrap = el("view-dashboard");
   if (!wrap) return;
@@ -41,7 +50,10 @@ function paintDashboard(s) {
         <div class="status-header">bot running</div>
         <div class="status-info"><span class="status-label">name:</span> ${s.name}</div>
         <div class="status-info"><span class="status-label">server:</span> ${s.target}</div>
+        <div class="status-info"><span class="status-label">provider:</span> ${s.provider}</div>
+        <div class="status-info"><span class="status-label">model:</span> ${s.model}</div>
         <div class="timer" id="timer">${fmt(s.remaining)}</div>
+        <div class="status-info usage" id="usage"><span class="status-label">usage:</span> ${usageLine(s)}</div>
       </div>
       <div class="actions">
         <button class="pixel btn" id="stop-btn">stop bot</button>
@@ -72,6 +84,8 @@ function startTimer() {
         t.textContent = fmt(s.remaining);
         t.className = "timer" + (s.remaining < 60 ? " warning" : "");
       }
+      const u = el("usage");
+      if (u) u.innerHTML = `<span class="status-label">usage:</span> ${usageLine(s)}`;
     } else {
       clearInterval(timerInterval);
       timerInterval = null;
@@ -81,17 +95,19 @@ function startTimer() {
   }, 1000);
 }
 
-function totalSteps() { return STATIC_STEPS.length + 4; }
+function totalSteps() { return STATIC_STEPS.length + 5; }
 function stepIdx() {
   if (phase === "static") return step;
   if (phase === "provider") return STATIC_STEPS.length;
   if (phase === "apikey") return STATIC_STEPS.length + 1;
   if (phase === "model") return STATIC_STEPS.length + 2;
-  return STATIC_STEPS.length + 3;
+  if (phase === "systemprompt") return STATIC_STEPS.length + 3;
+  return STATIC_STEPS.length + 4;
 }
 
 function canBack() { return phase !== "static" || step > 0; }
 function goBack() {
+  if (phase === "session") { phase = "systemprompt"; render(); return; }
   if (phase === "systemprompt") { phase = "model"; render(); return; }
   if (phase === "model") { phase = "apikey"; render(); return; }
   if (phase === "apikey") { phase = "provider"; render(); return; }
@@ -109,13 +125,14 @@ function render() {
   else if (phase === "provider") renderProvider();
   else if (phase === "apikey") renderApiKey();
   else if (phase === "model") renderModel();
-  else renderPersonality();
+  else if (phase === "systemprompt") renderPersonality();
+  else renderSession();
 }
 
-function navBtns(isLast) {
+function navBtns(label) {
   return `<div class="buttons">
     ${canBack() ? '<button class="pixel btn" id="bb">back</button>' : '<button class="pixel btn" id="cb">cancel</button>'}
-    <button class="pixel btn primary" id="nb">${isLast?"create":"next"}</button>
+    <button class="pixel btn primary" id="nb">${label}</button>
   </div>`;
 }
 function bindNav() {
@@ -130,7 +147,7 @@ function renderStatic() {
     <div class="step-title">${s.title}</div>
     <div class="step-desc">${s.desc}</div>
     <input class="input" type="text" id="inp" value="${vals[s.id]}" placeholder="${s.placeholder}" autocomplete="off">
-    ${navBtns(false)}
+    ${navBtns("next")}
   `;
   const inp = el("inp"); inp.focus(); inp.select();
   inp.onkeydown = e => { if(e.key==="Enter") el("nb").click(); };
@@ -150,7 +167,7 @@ function renderProvider() {
     <div class="provider-list">
       ${PROVIDERS.map(p=>`<button class="pixel btn provider-btn${vals.provider===p?" primary":""}" data-p="${p}">${p}</button>`).join("")}
     </div>
-    ${navBtns(false)}
+    ${navBtns("next")}
   `;
   document.querySelectorAll(".provider-btn").forEach(b => {
     b.onclick = () => {
@@ -167,7 +184,7 @@ function renderApiKey() {
   el("step-content").innerHTML = `
     <div class="step-icon pixel">${STATIC_STEPS.length+2}</div>
     <div class="step-title">${vals.provider} api key</div>
-    <div class="step-desc">paste your api key — we'll verify and fetch models</div>
+    <div class="step-desc">paste your api key, we'll verify and fetch models</div>
     <input class="input" type="password" id="inp" value="" placeholder="sk-..." autocomplete="off">
     <div class="buttons">
       <button class="pixel btn" id="bb">back</button>
@@ -195,11 +212,11 @@ function renderModel() {
   el("step-content").innerHTML = `
     <div class="step-icon pixel">${STATIC_STEPS.length+3}</div>
     <div class="step-title">model</div>
-    <div class="step-desc">${models.length} models — click to select</div>
+    <div class="step-desc">${models.length} models, click to select</div>
     <div class="model-box" id="mb">
       ${models.map(m=>`<div class="mitem${vals.model===m?" sel":""}" data-m="${m}">${m}</div>`).join("")}
     </div>
-    ${navBtns(false)}
+    ${navBtns("next")}
   `;
   document.querySelectorAll(".mitem").forEach(b => {
     b.onclick = () => {
@@ -221,23 +238,74 @@ function renderPersonality() {
     <div class="step-title">personality</div>
     <div class="step-desc">how should the bot act? (optional)</div>
     <input class="input" type="text" id="inp" value="${vals.systemPrompt}" placeholder="be sarcastic and funny" autocomplete="off">
-    ${navBtns(true)}
+    ${navBtns("next")}
   `;
   const inp = el("inp"); inp.focus();
   inp.onkeydown = e => { if(e.key==="Enter") el("nb").click(); };
-  el("nb").onclick = () => { vals.systemPrompt = inp.value.trim(); createBot(); };
+  el("nb").onclick = () => { vals.systemPrompt = inp.value.trim(); phase = "session"; render(); };
   bindNav();
+}
+
+function renderSession() {
+  el("step-content").innerHTML = `
+    <div class="step-icon pixel">${STATIC_STEPS.length+5}</div>
+    <div class="step-title">session length</div>
+    <div class="step-desc">how long should the bot stay? (max 30 min)</div>
+    <div class="session-list">
+      ${SESSION_OPTIONS.map(m=>`<button class="pixel btn session-btn${vals.sessionMinutes===m?" primary":""}" data-m="${m}">${m} min</button>`).join("")}
+    </div>
+    ${navBtns("create")}
+  `;
+  document.querySelectorAll(".session-btn").forEach(b => {
+    b.onclick = () => {
+      vals.sessionMinutes = parseInt(b.dataset.m);
+      document.querySelectorAll(".session-btn").forEach(x=>x.classList.remove("primary"));
+      b.classList.add("primary");
+    };
+  });
+  el("nb").onclick = () => createBot();
+  bindNav();
+}
+
+function renderCooldown(seconds) {
+  if (cooldownInterval) clearInterval(cooldownInterval);
+  let remaining = seconds;
+  const paint = () => {
+    el("step-content").innerHTML = `
+      <div class="status-header" style="color:#ff6b6b">spawn cooldown</div>
+      <div class="step-desc">you spawned a bot recently. you can create another in</div>
+      <div class="timer" style="color:#ff6b6b">${fmt(remaining)}</div>
+      <div class="buttons"><button class="pixel btn" id="cd-cancel">back to dashboard</button></div>
+    `;
+    el("cd-cancel").onclick = () => {
+      if (cooldownInterval) clearInterval(cooldownInterval);
+      cooldownInterval = null;
+      showView("dashboard"); init();
+    };
+  };
+  paint();
+  cooldownInterval = setInterval(() => {
+    remaining--;
+    if (remaining <= 0) {
+      clearInterval(cooldownInterval);
+      cooldownInterval = null;
+      step = 0; phase = "static"; render();
+    } else {
+      const t = el("step-content")?.querySelector(".timer");
+      if (t) t.textContent = fmt(remaining);
+    }
+  }, 1000);
 }
 
 async function createBot() {
   el("step-content").innerHTML = `<div class="status-header blink">connecting...</div>`;
   try {
-    const r = await (await fetch("/api/bot",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ip:vals.ip,port:parseInt(vals.port),version:vals.version,botName:vals.botName,apiKey:vals.apiKey,provider:vals.provider,model:vals.model,systemPrompt:vals.systemPrompt})})).json();
-    if (r.success) { showView("dashboard"); init(); }
-    else {
-      el("step-content").innerHTML = `<div class="status-header" style="color:#ff6b6b">failed</div><div class="step-desc">${r.error}</div><div class="buttons"><button class="pixel btn" id="rb">try again</button></div>`;
-      el("rb").onclick = () => { step=0; phase="static"; render(); };
-    }
+    const res = await fetch("/api/bot",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ip:vals.ip,port:parseInt(vals.port),version:vals.version,botName:vals.botName,apiKey:vals.apiKey,provider:vals.provider,model:vals.model,systemPrompt:vals.systemPrompt,sessionMinutes:vals.sessionMinutes})});
+    const r = await res.json();
+    if (r.success) { showView("dashboard"); init(); return; }
+    if (res.status === 429 && r.retry_after) { renderCooldown(r.retry_after); return; }
+    el("step-content").innerHTML = `<div class="status-header" style="color:#ff6b6b">failed</div><div class="step-desc">${r.error}</div><div class="buttons"><button class="pixel btn" id="rb">try again</button></div>`;
+    el("rb").onclick = () => { step=0; phase="static"; render(); };
   } catch {
     el("step-content").innerHTML = `<div class="status-header" style="color:#ff6b6b">connection error</div><div class="buttons"><button class="pixel btn" id="rb">try again</button></div>`;
     el("rb").onclick = () => { step=0; phase="static"; render(); };

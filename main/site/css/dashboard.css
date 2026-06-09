@@ -1,3 +1,9 @@
+.usage {
+  font-size: 0.85rem !important;
+  color: var(--dim) !important;
+  margin-top: 0.75rem;
+}
+
 .provider-list {
   display: flex;
   flex-direction: column;
@@ -7,6 +13,19 @@
 }
 
 .provider-btn {
+  width: 100%;
+  text-align: center;
+}
+
+.session-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  width: 100%;
+  margin: 1rem 0;
+}
+
+.session-btn {
   width: 100%;
   text-align: center;
 }
