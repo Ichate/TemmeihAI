@@ -1,0 +1,358 @@
+import { getBot } from "./ctx.js";
+import { log } from "./log.js";
+import { movement } from "./movement/index.js";
+
+export const TOOL_DEFS = [
+  {
+    name: "come_here",
+    description: "Walk ONCE to a player and stop next to them. Use ONLY for 'come here', 'come to me', 'over here', 'come'. This does NOT keep following them after.",
+    parameters: {
+      type: "object",
+      properties: {
+        player: { type: "string", description: "username of the player to walk to. omit to use whoever is closest" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "follow_player",
+    description: "Keep following a player CONTINUOUSLY, staying near them as they move. Use this for 'follow me', 'follow', 'come with me', 'stick with me', 'stay with me', 'tag along'. This is different from come_here - it does not stop, it keeps following.",
+    parameters: {
+      type: "object",
+      properties: {
+        player: { type: "string", description: "username to follow. omit for the closest player" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "goto_coords",
+    description: "Walk to specific x y z coordinates. Use ONLY when given actual numeric coordinates.",
+    parameters: {
+      type: "object",
+      properties: {
+        x: { type: "number" },
+        y: { type: "number" },
+        z: { type: "number" },
+      },
+      required: ["x", "z"],
+    },
+  },
+  {
+    name: "goto_player",
+    description: "Walk once to a named player then stop. Rarely needed - prefer come_here for 'come' and follow_player for 'follow'.",
+    parameters: {
+      type: "object",
+      properties: {
+        player: { type: "string", description: "username to walk to" },
+      },
+      required: ["player"],
+    },
+  },
+  {
+    name: "stop_moving",
+    description: "Stop whatever movement you are doing and stand still. Use when someone says stop, wait, stay, hold on.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "wander",
+    description: "Roam around the area on your own for a bit. Use when someone says go explore, wander off, do your own thing.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "flee",
+    description: "Run away from danger or a threat nearby. Use when scared, in danger, or told to run.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "jump",
+    description: "Jump in place, once or a few times. Use to celebrate, get attention, or mess around.",
+    parameters: {
+      type: "object",
+      properties: {
+        times: { type: "integer", description: "how many times to jump, 1 to 5" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "crouch",
+    description: "Sneak/crouch for a short moment. Use to be sneaky or as a gesture.",
+    parameters: {
+      type: "object",
+      properties: {
+        seconds: { type: "number", description: "how long to crouch, 1 to 5 seconds" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "lead_player",
+    description: "Walk slightly ahead of a player and guide them, waiting if they fall behind. Use when someone says lead me, show me the way, take me to.",
+    parameters: {
+      type: "object",
+      properties: {
+        player: { type: "string", description: "username to lead. omit for the closest player" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "tail_player",
+    description: "Follow a player but hang back at a distance instead of right on top of them. Use when someone says keep your distance, follow from behind.",
+    parameters: {
+      type: "object",
+      properties: {
+        player: { type: "string", description: "username to tail. omit for the closest player" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "stay_here",
+    description: "Park at the current spot and stay put, returning if pushed away. Use when someone says wait here, stay, guard this spot, hold position.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "gather",
+    description: "Walk to the middle of all the players around. Use when someone says everyone gather, group up, come together.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "mirror_player",
+    description: "Playfully copy what a player does, jumping and crouching when they do. Use when told to copy me, do what i do, mimic me.",
+    parameters: {
+      type: "object",
+      properties: {
+        player: { type: "string", description: "username to copy. omit for the closest player" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "set_speed",
+    description: "Change how fast you move. Use when told to hurry, slow down, sneak, walk normally.",
+    parameters: {
+      type: "object",
+      properties: {
+        speed: { type: "string", enum: ["sneak", "walk", "sprint"], description: "movement speed" },
+      },
+      required: ["speed"],
+    },
+  },
+  {
+    name: "react_to_danger",
+    description: "Assess nearby threats and reposition smartly, dodge creepers, back off from ranged mobs, retreat. Use when threatened but not necessarily told to flee.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "go_back",
+    description: "Walk back to wherever you were right before your last move. Use for 'go back', 'return', 'come back here'.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "save_waypoint",
+    description: "Remember the current spot under a name so you can return later. Use for 'this is home', 'call this the farm', 'remember this spot as X'.",
+    parameters: {
+      type: "object",
+      properties: { name: { type: "string", description: "name for this spot, e.g. home, farm, base" } },
+      required: ["name"],
+    },
+  },
+  {
+    name: "goto_waypoint",
+    description: "Walk to a previously saved named spot. Use for 'go home', 'head to the farm', 'go to X'.",
+    parameters: {
+      type: "object",
+      properties: { name: { type: "string", description: "the saved spot name" } },
+      required: ["name"],
+    },
+  },
+  {
+    name: "run_route",
+    description: "Visit several saved spots in order, one after another. Use for 'go to A then B', 'do the rounds'. Set return_to_start to also come back.",
+    parameters: {
+      type: "object",
+      properties: {
+        stops: { type: "array", items: { type: "string" }, description: "ordered list of saved spot names" },
+        return_to_start: { type: "boolean", description: "come back to where you started after the last stop" },
+      },
+      required: ["stops"],
+    },
+  },
+  {
+    name: "patrol",
+    description: "Loop back and forth between two or more saved spots until told to stop. Use for 'patrol between A and B', 'guard the area'.",
+    parameters: {
+      type: "object",
+      properties: { stops: { type: "array", items: { type: "string" }, description: "saved spot names to patrol between (at least 2)" } },
+      required: ["stops"],
+    },
+  },
+  {
+    name: "climb_up",
+    description: "Find and climb to the highest reachable ground nearby. Use for 'get up high', 'climb that', 'get on the roof', 'go up'.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "go_down",
+    description: "Find and descend to safe lower ground nearby. Use for 'go down', 'get down here', 'into the cave'.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "jump_to_player",
+    description: "Try to reach a player who is up on a ledge or higher spot, jumping/parkouring toward them.",
+    parameters: {
+      type: "object",
+      properties: { player: { type: "string", description: "username to reach. omit for closest" } },
+      required: [],
+    },
+  },
+  {
+    name: "check_on_hurt",
+    description: "Go to the player who is most hurt (lowest health), or the nearest player. Use for 'go help', 'check on them', 'who's hurt'.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "seek_light",
+    description: "Head toward the nearest light source (torch, lantern, glowstone). Use when it's dark and dangerous, or told 'get to the light', 'find safety'.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "use_door",
+    description: "Walk to and through the nearest door or gate. Use for 'go inside', 'come in', 'go out', 'leave the house'. Set leave true for going out.",
+    parameters: {
+      type: "object",
+      properties: { leave: { type: "boolean", description: "true to go out, false to go in" } },
+      required: [],
+    },
+  },
+  {
+    name: "gesture",
+    description: "Do a body-language gesture. Use to be expressive: wave hello/bye, nod yes, shake head no, bow, turn around, look behind you, or celebrate.",
+    parameters: {
+      type: "object",
+      properties: {
+        kind: { type: "string", enum: ["wave", "nod", "shake_head", "bow", "turn_around", "look_behind", "celebrate"], description: "which gesture" },
+      },
+      required: ["kind"],
+    },
+  },
+];
+
+export function toolNames() {
+  return TOOL_DEFS.map(t => t.name);
+}
+
+export async function executeTool(name, input) {
+  const bot = getBot();
+  if (!bot || !bot.entity) return { ok: false, reason: "not in game yet" };
+  const a = input || {};
+  log.info(`tool call: ${name} ${JSON.stringify(a)}`);
+
+  try {
+    switch (name) {
+      case "come_here":
+        return await movement.comeToPlayer(a.player || null);
+      case "follow_player":
+        return await movement.followPlayer(a.player || null);
+      case "goto_coords": {
+        if (typeof a.x !== "number" || typeof a.z !== "number") {
+          return { ok: false, reason: "need at least x and z" };
+        }
+        const y = typeof a.y === "number" ? a.y : Math.round(bot.entity.position.y);
+        return await movement.gotoCoords(a.x, y, a.z, { label: `${Math.round(a.x)},${Math.round(y)},${Math.round(a.z)}` });
+      }
+      case "goto_player":
+        return await movement.gotoPlayer(a.player);
+      case "stop_moving":
+        return await movement.stop("told to stop");
+      case "wander":
+        movement.startWander();
+        return { ok: true, reason: "wandering around now" };
+      case "flee":
+        return await movement.fleeFrom(null, { label: "danger" });
+      case "jump": {
+        const t = clampInt(a.times, 1, 5, 1);
+        await movement.jumpTimes(t);
+        return { ok: true, reason: `jumped ${t}x` };
+      }
+      case "crouch": {
+        const s = clampNum(a.seconds, 0.5, 5, 1);
+        await movement.sneakFor(s * 1000);
+        return { ok: true, reason: `crouched ${s}s` };
+      }
+      case "lead_player":
+        return await movement.escortPlayer(a.player || null);
+      case "tail_player":
+        return await movement.tailPlayer(a.player || null);
+      case "stay_here":
+        return await movement.guardSpot(null, null, null, { label: "this spot" });
+      case "gather":
+        return await movement.gatherToGroup();
+      case "mirror_player":
+        return movement.startMirror(a.player || null);
+      case "set_speed": {
+        const sp = ["sneak", "walk", "sprint"].includes(a.speed) ? a.speed : "walk";
+        movement.setSpeed(sp);
+        return { ok: true, reason: `speed set to ${sp}` };
+      }
+      case "react_to_danger":
+        return await movement.reactToThreats();
+      case "go_back":
+        return await movement.returnToPrevious();
+      case "save_waypoint":
+        if (!a.name) return { ok: false, reason: "need a name for the spot" };
+        return movement.saveCurrentAs(a.name);
+      case "goto_waypoint":
+        if (!a.name) return { ok: false, reason: "need the spot name" };
+        return await movement.gotoWaypoint(a.name);
+      case "run_route":
+        if (!Array.isArray(a.stops) || !a.stops.length) return { ok: false, reason: "need a list of stops" };
+        return await movement.runQueue(a.stops, { returnToStart: !!a.return_to_start });
+      case "patrol":
+        if (!Array.isArray(a.stops) || a.stops.length < 2) return { ok: false, reason: "need at least two spots to patrol" };
+        return await movement.startPatrol(a.stops);
+      case "climb_up":
+        return await movement.climbHighGround();
+      case "go_down":
+        return await movement.descendSafely();
+      case "jump_to_player":
+        return await movement.jumpToPlayer(a.player || null);
+      case "check_on_hurt":
+        return await movement.comeToHurtPlayer();
+      case "seek_light":
+        return await movement.seekLight();
+      case "use_door":
+        return await movement.goToDoor({ leave: !!a.leave });
+      case "gesture": {
+        const k = a.kind;
+        if (k === "wave") return await movement.wave();
+        if (k === "nod") return await movement.nod();
+        if (k === "shake_head") return await movement.shakeHead();
+        if (k === "bow") return await movement.bow();
+        if (k === "turn_around") return await movement.turnAround();
+        if (k === "look_behind") return await movement.lookBehind();
+        if (k === "celebrate") return await movement.celebrate();
+        return { ok: false, reason: "unknown gesture" };
+      }
+      default:
+        return { ok: false, reason: `unknown tool ${name}` };
+    }
+  } catch (e) {
+    log.error(`tool ${name} threw: ${e.message}`);
+    return { ok: false, reason: e.message };
+  }
+}
+
+function clampInt(v, lo, hi, dflt) {
+  const n = parseInt(v);
+  if (!Number.isFinite(n)) return dflt;
+  return Math.max(lo, Math.min(hi, n));
+}
+
+function clampNum(v, lo, hi, dflt) {
+  const n = parseFloat(v);
+  if (!Number.isFinite(n)) return dflt;
+  return Math.max(lo, Math.min(hi, n));
+}

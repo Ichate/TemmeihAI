@@ -3,8 +3,6 @@ import os
 import subprocess
 import asyncio
 import time
-
-USAGE_RE = re.compile(r"usage input=(\d+) output=(\d+)")
 from collections import defaultdict
 from datetime import datetime
 from fastapi import APIRouter, Request
@@ -14,14 +12,18 @@ from config import (
     BOT_DIR, BASE_DIR, PROVIDERS, RATE_LIMIT_BOT_SPAWN, RATE_LIMIT_BOT_WINDOW,
     MAX_SYSTEM_PROMPT_LEN, MAX_IP_LEN, MAX_BOT_NAME_LEN,
     DEFAULT_SESSION_MINUTES, MAX_SESSION_MINUTES, MIN_SESSION_MINUTES,
+    STALE_LOG_TIMEOUT_S, MAX_COST_CAP_USD, MIN_COST_CAP_USD,
     price_for_model,
 )
 import logger
 import db
 
+USAGE_RE = re.compile(r"usage input=(\d+) output=(\d+)")
+
 router = APIRouter()
 active_bots = {}
 _spawn_limits = defaultdict(list)
+
 
 class BotConfig(BaseModel):
     ip: str
@@ -33,6 +35,8 @@ class BotConfig(BaseModel):
     model: str
     systemPrompt: str = ""
     sessionMinutes: int = DEFAULT_SESSION_MINUTES
+    costCapUsd: float = 0.0
+
 
 def _spawn_retry_after(ip):
     now = time.time()
@@ -43,8 +47,10 @@ def _spawn_retry_after(ip):
         return int(RATE_LIMIT_BOT_WINDOW - (now - oldest))
     return 0
 
+
 def _record_spawn(ip):
     _spawn_limits[ip].append(time.time())
+
 
 def build_system(bot_name, user_prompt):
     base = f"""You are a Minecraft bot named {bot_name} playing on a server.
@@ -57,10 +63,13 @@ Rules:
 - Never repeat yourself
 - No markdown, no emotes, just plain chat text
 - Always respond to messages
-- You get a [current game state: ...] line with your health, hunger, position, time, inventory, and nearby players/mobs. Use it to react naturally (mention low health, comment on mobs, etc) but don't recite it like a robot or read it out unless it's relevant"""
+- You get a [current game state: ...] line with your health, hunger, position, time, inventory, and nearby players/mobs. Use it to react naturally (mention low health, comment on mobs, etc) but don't recite it like a robot or read it out unless it's relevant
+- You can actually move. You have tools to come to a player, follow them, walk to coordinates, stop, wander around, run from danger, jump, and crouch. When someone asks you to come, follow, go somewhere, or stop, USE THE TOOL, don't just say you will. You can move and talk in the same reply.
+- You roam around on your own by default. Moving is normal, you don't need permission for every step."""
     if user_prompt:
         base += f"\n\nPersonality: {user_prompt}"
     return base
+
 
 def validate(config):
     if not config.ip or len(config.ip) > MAX_IP_LEN:
@@ -85,31 +94,87 @@ def validate(config):
         return "system prompt too long"
     if config.sessionMinutes < MIN_SESSION_MINUTES or config.sessionMinutes > MAX_SESSION_MINUTES:
         return f"session must be {MIN_SESSION_MINUTES}-{MAX_SESSION_MINUTES} minutes"
+    if config.costCapUsd:
+        if config.costCapUsd < MIN_COST_CAP_USD or config.costCapUsd > MAX_COST_CAP_USD:
+            return f"cost cap must be {MIN_COST_CAP_USD}-{MAX_COST_CAP_USD} usd"
     return None
+
+
+def _tcp_open(host, port, timeout=3.0):
+    import socket
+    try:
+        with socket.create_connection((host, int(port)), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+async def ping_server(host, port):
+    loop = asyncio.get_event_loop()
+    reachable = await loop.run_in_executor(None, _tcp_open, host, port)
+    if not reachable:
+        return False, f"nothing is listening on {host}:{port} (wrong port, or server offline)"
+
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "node", "--no-warnings", str(BOT_DIR / "ping.js"), host, str(port),
+            cwd=str(BASE_DIR),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        try:
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=6.0)
+        except asyncio.TimeoutError:
+            try: proc.kill()
+            except Exception: pass
+            return True, "port open, status ping slow (continuing anyway)"
+        code = proc.returncode
+        if code == 0:
+            return True, stdout.decode().strip()
+        err = stderr.decode().strip() or "status ping refused"
+        return True, f"port open but status ping failed ({err[:120]}), trying to join anyway"
+    except FileNotFoundError:
+        return True, "ping skipped (node missing)"
+    except Exception as e:
+        return True, f"port open, precheck error ({e}), trying anyway"
+
 
 @router.get("/status")
 async def get_status(request: Request):
-    ip = request.client.host
-    if ip in active_bots:
-        b = active_bots[ip]
-        elapsed = int(time.time() - b["start_time"])
-        total = b["session_seconds"]
-        remaining = max(0, total - elapsed)
-        return {
-            "active": True,
-            "name": b["name"],
-            "target": b["target"],
-            "provider": b["provider"],
-            "model": b["model"],
-            "elapsed": elapsed,
-            "remaining": remaining,
-            "total": total,
-            "tokens_in": b["tokens_in"],
-            "tokens_out": b["tokens_out"],
-            "calls": b["calls"],
-            "cost": round(b["cost"], 4),
-        }
-    return {"active": False}
+    try:
+        ip = request.client.host
+        if ip in active_bots:
+            b = active_bots[ip]
+            elapsed = int(time.time() - b["start_time"])
+            total = b["session_seconds"]
+            remaining = max(0, total - elapsed)
+
+            cost_projected = None
+            if elapsed > 10 and b["cost"] > 0:
+                rate = b["cost"] / elapsed
+                cost_projected = round(rate * total, 4)
+
+            return {
+                "active": True,
+                "name": b["name"],
+                "target": b["target"],
+                "provider": b["provider"],
+                "model": b["model"],
+                "elapsed": elapsed,
+                "remaining": remaining,
+                "total": total,
+                "tokens_in": b["tokens_in"],
+                "tokens_out": b["tokens_out"],
+                "calls": b["calls"],
+                "cost": round(b["cost"], 4),
+                "cost_projected": cost_projected,
+                "cost_cap": b["cost_cap"] or None,
+            }
+        return {"active": False}
+    except Exception as e:
+        logger.error(f"status error: {e}")
+        return {"active": False}
+
 
 @router.post("/stop")
 async def stop_bot(request: Request):
@@ -122,9 +187,11 @@ async def stop_bot(request: Request):
         return {"success": True}
     return {"success": False, "error": "no bot running"}
 
+
 @router.get("/history")
 async def get_history():
     return {"bots": db.recent_bots()}
+
 
 @router.post("/bot")
 async def create_bot(config: BotConfig, request: Request):
@@ -145,6 +212,13 @@ async def create_bot(config: BotConfig, request: Request):
         logger.error(f"rejected {ip} - {error}")
         return JSONResponse({"success": False, "error": error}, status_code=400)
 
+    ok, info = await ping_server(config.ip, config.port)
+    if not ok:
+        logger.warn(f"precheck failed for {config.ip}:{config.port} - {info}")
+        return JSONResponse({"success": False, "error": info}, status_code=400)
+
+    logger.info(f"precheck ok: {info}")
+
     system_prompt = build_system(config.botName, config.systemPrompt)
     session_seconds = config.sessionMinutes * 60
     logger.bot(f"{config.botName} connecting to {config.ip}:{config.port} ({config.sessionMinutes}min)")
@@ -163,13 +237,14 @@ async def create_bot(config: BotConfig, request: Request):
 
         in_price, out_price = price_for_model(config.model)
         _record_spawn(ip)
+        now = time.time()
         active_bots[ip] = {
             "proc": proc,
             "name": config.botName,
             "target": f"{config.ip}:{config.port}",
             "provider": config.provider,
             "model": config.model,
-            "start_time": time.time(),
+            "start_time": now,
             "session_seconds": session_seconds,
             "tokens_in": 0,
             "tokens_out": 0,
@@ -177,6 +252,8 @@ async def create_bot(config: BotConfig, request: Request):
             "cost": 0.0,
             "in_price": in_price,
             "out_price": out_price,
+            "cost_cap": float(config.costCapUsd) if config.costCapUsd else 0.0,
+            "last_log_time": now,
         }
 
         db.append_bot({
@@ -191,8 +268,14 @@ async def create_bot(config: BotConfig, request: Request):
             while proc.poll() is None:
                 try:
                     line = await asyncio.wait_for(loop.run_in_executor(None, proc.stdout.readline), timeout=1.0)
-                    if line:
-                        line = line.strip()
+                    if not line:
+                        continue
+                    line = line.strip()
+                    if not line:
+                        continue
+                    if ip in active_bots:
+                        active_bots[ip]["last_log_time"] = time.time()
+                    try:
                         m = USAGE_RE.search(line)
                         if m and ip in active_bots:
                             b = active_bots[ip]
@@ -201,9 +284,28 @@ async def create_bot(config: BotConfig, request: Request):
                             b["tokens_out"] += to
                             b["calls"] += 1
                             b["cost"] += (ti / 1_000_000) * b["in_price"] + (to / 1_000_000) * b["out_price"]
-                        logger.error(f"{config.botName}: {line}") if "error" in line.lower() else logger.info(f"{config.botName}: {line}")
+                            logger.info(f"{config.botName}: cost now ${b['cost']:.4f} ({b['calls']} calls)")
+                            if b["cost_cap"] and b["cost"] >= b["cost_cap"]:
+                                logger.warn(f"{b['name']} hit cost cap ${b['cost_cap']:.2f} (spent ${b['cost']:.4f}), stopping")
+                                try: b["proc"].terminate()
+                                except Exception: pass
+                    except Exception as e:
+                        logger.error(f"usage parse error: {e}")
+                    if "error" in line.lower():
+                        logger.error(f"{config.botName}: {line}")
+                    else:
+                        logger.info(f"{config.botName}: {line}")
                 except asyncio.TimeoutError:
-                    pass
+                    if ip in active_bots:
+                        b = active_bots[ip]
+                        if time.time() - b["last_log_time"] > STALE_LOG_TIMEOUT_S:
+                            logger.warn(f"{b['name']} stale (no output for {STALE_LOG_TIMEOUT_S}s), killing")
+                            try: b["proc"].kill()
+                            except Exception: pass
+                            break
+                except Exception as e:
+                    logger.error(f"monitor loop error: {e}")
+                    await asyncio.sleep(0.5)
             if ip in active_bots:
                 del active_bots[ip]
                 logger.info(f"{config.botName} process ended")
