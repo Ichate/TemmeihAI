@@ -4,25 +4,73 @@
 
 ai bots that actually play minecraft with you.
 
-not just stand there. not just follow you around. actually talk, fight, build, craft, grind. like a real player, but it never logs off.
-
 ## what it does
 
-you invite a bot to your server and it plays with you. talk to it in chat and it responds with an actual brain behind it. it knows it's in minecraft, knows its own name, remembers conversations, and responds to whoever's talking to it.
+invite a bot to your server, it joins and just lives there. walks around on its own, talks to people in chat, reacts to stuff happening around it. eats when it's hungry, panics when it's at 2 hearts, comments when it rains, greets new players. tell it to come over or follow you and it actually walks to you. you pick the provider (anthropic / openai / openrouter / gemini) and watch the token usage and cost tick up live on the dashboard.
 
-- talks - real conversations powered by your choice of llm
-- remembers - rolling in-memory history, cleared on disconnect
-- multi-provider - anthropic, openai, openrouter, gemini
-- model picker - verifies your key and lists actual available models
-- custom personality - give it a system prompt and make it act however you want
-- knows what's around it - health, hunger, position, time, inventory, nearby players/mobs all fed into context
-- auto-eats - eats food from its inventory when hunger gets low
-- reacts to events - comments on taking damage, dying, nightfall, rain, players joining/leaving
-- token + cost meter - tracks tokens used and estimated cost per session on the dashboard
-- looks at closest player - turns to face whoever is nearby
-- batches messages - if multiple players talk at once, one smart reply to all
-- auto-leaves - disconnects after 5 minutes
-- 1 bot per ip - one session at a time
+## features
+
+**chat**
+- multi-provider with live key check and real model list
+- custom personality prompt
+- 40-message in-memory history, wiped on disconnect
+- message batching, multiple players talking at once get one combined reply
+- chat sanitization, strips server `/commands` and junk
+- prompt-injection guard, catches "ignore your instructions" type stuff
+
+**movement**
+- wanders its local area on its own when nothing else is going on
+- comes to you, follows you, tails you from a distance, leads you somewhere, walks to coordinates, stops, waits at a spot, runs from danger
+- remembers spots you name ("this is home" then later "go home"), runs a route of several spots in order, patrols back and forth between spots until told to stop
+- goes back to where it was before a detour
+- climbs to higher ground, finds a safe way down, tries to reach a player up on a ledge
+- heads for a torch or lantern when it's dark, walks in or out through a door, comes to whoever's lowest on health
+- gestures: waves, nods, shakes its head, bows, turns around, looks behind it, jumps around to celebrate
+- jumps, crouches, changes speed between sneak / walk / sprint
+- it picks all of this itself through the model's tool calls, so it acts because it decided to, not because a keyword matched
+- runs on pathfinder for the actual walking: parkour, jumping gaps, swimming, opening doors, avoiding lava and other hazards
+- arrival is only reported when it physically gets there, and it tells you honestly if it can't find a path or gets stuck
+- one thing at a time, with an order to it: surviving comes before your commands, your commands come before its own wandering
+
+**world awareness**
+the bot gets a `[current game state: ...]` line every turn with health, hunger, position, dimension, biome, time of day, weather, held item, inventory, nearby players + mobs, xp level. light version for idle chatter, full version for real conversations and combat.
+
+**survival**
+- auto-eats when hunger drops, knows ~40 food items, swaps back to whatever it was holding
+- runs from danger when it's low and something hostile is close
+- damage source tracking so it knows what hit it
+
+**reacts to stuff (each with its own cooldown so it doesn't spam)**
+- arrival line on first spawn
+- player joined / left
+- low health, took damage (says what hit it), death
+- xp level up
+- nightfall / daybreak
+- rain start/stop, thunderstorm
+- biome change
+- item pickup
+- watching another player attack something nearby
+- advancements other players earn
+- idle chatter when it's been quiet
+
+**reliability**
+- auto-reconnect on kick/disconnect/error, 5 tries 5s apart
+- session timer is wall-clock so reconnecting doesn't reset it
+- clean shutdown, clears everything and wipes memory on exit
+- 60s timeout on llm calls, retries once on a hiccup
+
+**dashboard**
+- adjustable session length, 5 to 30 min
+- optional cost cap, auto-stops if it spends too much
+- live countdown, warns under a minute
+- provider/model + live token + cost meter with projection
+- countdown when you hit the spawn cooldown
+- scrollable model list with keyboard nav
+
+**security**
+- 1 bot per ip, 1 spawn per 5 min, rate limited
+- server gets pinged before spawn so you get a clear error instead of a hang
+- full input validation
 
 ## setup
 
@@ -31,81 +79,72 @@ pip install -r requirements.txt
 cd main/backend && npm install
 ```
 
-then run:
+run:
 
 ```bash
 cd main/backend
 python main.py
 ```
 
-go to http://localhost:3000
+open http://localhost:3000
 
 ## how to use
 
-1. open the dashboard
-2. click create bot
-3. type in server ip, port, minecraft version, bot name
-4. pick a provider
-5. paste your api key (it verifies it and pulls the real model list)
-6. pick a model
-7. optionally give it a personality
-8. bot joins and starts chatting
+1. open the dashboard, click create bot
+2. server ip, port, version, bot name
+3. pick provider, paste api key (it verifies and pulls the real model list)
+4. pick model, optional personality, session length, optional cost cap
+5. bot joins and starts doing its thing
+
+then just talk to it in chat. try "come here", "follow me", "go to 100 64 -200", "stop", "this is home", "go home", "wait here", "climb up", "wave", "patrol between home and the gate".
 
 ## project layout
 
 ```
 main/
-  site/
-    index.html
-    start.html          dashboard page
-    about.html
-    css/
-      style.css
-      dashboard.css
-    js/
-      main.js
-      start.js
-  backend/
-    main.py             server entry point
-    config.py           all the constants
-    logger.py           terminal logging
-    db.py               saves recent bot sessions
-    llm.py              api calls to all providers
+  site/                        frontend
+    index.html  about.html  start.html
+    css/  js/
+  backend/                     fastapi server
+    main.py                    entry
+    config.py  logger.py  db.py  llm.py
     routes/
-      bot.py            bot endpoints
-      chat.py           chat + key verify endpoints
-    bot/
-      run.js            the actual bot, calls apis directly
-      history.js        in-memory chat history
+      bot.py                   spawn / status / stop / history
+      chat.py                  chat proxy + key verify
+    bot/                       node mineflayer bot
+      run.js                   entry
+      ctx.js                   shared state + args
+      config.js                thresholds, ranges, food/hostile sets
+      log.js  cooldowns.js  history.js
+      llm.js                   provider calls + tool calling
+      tools.js                 tool definitions the bot can call
+      state.js                 world state + entity helpers
+      damage.js  sanitize.js  sounds.js  intents.js  drops.js
+      speech.js                chat, context, runs tool calls
+      session.js               connect / reconnect / shutdown
+      handlers.js              all the bot event listeners
+      ping.js                  server reachability check
+      movement/                the movement system
+        config.js              all movement tuning
+        pathfinder.js          pathfinder setup + goal helpers
+        actions.js             jump, sneak, sprint, look, stop
+        controller.js          mode state machine + priorities
+        goals.js               come, follow, goto, flee, climb, descend, doors, light
+        waypoints.js           named spots, routes, patrol
+        gestures.js            wave, nod, bow, turn, celebrate
+        wander.js              roams on its own
+        combat-move.js         dodge, keep distance, retreat
+        social.js              personal space, mirror a player
+        poi.js                 finds interesting nearby spots to wander to
+        watchdog.js            lost-target / flee timeout / guard return
+        index.js               init + public api
 ```
-
-## how the ai works
-
-- player messages are batched (1.2s window) so multiple players get one combined reply
-- bot calls the provider api directly
-- system prompt is hardcoded minecraft context plus whatever personality you set
-- last 40 messages kept in memory per session
-- memory is in-ram only, cleared completely when bot leaves or session ends
-
-## current features
-
-- fastapi backend
-- mineflayer bot (node subprocess)
-- multi-provider llm support (anthropic, openai, openrouter, gemini)
-- live model fetching on key verify
-- rolling 40-message in-memory history
-- custom system prompt per bot
-- 1 bot per ip
-- input validation
-- looks at closest player
-- auto leave after 5 min
-- dashboard with live countdown timer
 
 ## coming soon
 
-- pathfinder (actually move around)
-- tool calls (mining, crafting, combat, building)
-- longer sessions
+- combat, actually fighting back instead of just running
+- mining and gathering
+- live chat feed on the dashboard
 
 ## license
 

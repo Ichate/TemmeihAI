@@ -10,7 +10,7 @@ const STATIC_STEPS = [
 let step = 0;
 let phase = "static";
 let models = [];
-let vals = { ip: "", port: "25565", version: "1.20.4", botName: "temmeihBot", apiKey: "", provider: "", model: "", systemPrompt: "", sessionMinutes: 5 };
+let vals = { ip: "", port: "25565", version: "1.20.4", botName: "temmeihBot", apiKey: "", provider: "", model: "", systemPrompt: "", sessionMinutes: 5, costCapUsd: 0 };
 let timerInterval = null;
 let cooldownInterval = null;
 
@@ -38,7 +38,14 @@ function usageLine(s) {
   const tin = s.tokens_in || 0, tout = s.tokens_out || 0;
   const cost = (s.cost || 0).toFixed(4);
   const calls = s.calls || 0;
-  return `${calls} calls | ${tin}+${tout} tok | $${cost}`;
+  let line = `${calls} calls | ${tin}+${tout} tok | $${cost}`;
+  if (s.cost_projected != null) {
+    line += ` -> est $${s.cost_projected.toFixed(4)} for full session`;
+  }
+  if (s.cost_cap) {
+    line += ` (cap $${s.cost_cap.toFixed(2)})`;
+  }
+  return line;
 }
 
 function paintDashboard(s) {
@@ -95,18 +102,20 @@ function startTimer() {
   }, 1000);
 }
 
-function totalSteps() { return STATIC_STEPS.length + 5; }
+function totalSteps() { return STATIC_STEPS.length + 6; }
 function stepIdx() {
   if (phase === "static") return step;
   if (phase === "provider") return STATIC_STEPS.length;
   if (phase === "apikey") return STATIC_STEPS.length + 1;
   if (phase === "model") return STATIC_STEPS.length + 2;
   if (phase === "systemprompt") return STATIC_STEPS.length + 3;
-  return STATIC_STEPS.length + 4;
+  if (phase === "session") return STATIC_STEPS.length + 4;
+  return STATIC_STEPS.length + 5;
 }
 
 function canBack() { return phase !== "static" || step > 0; }
 function goBack() {
+  if (phase === "costcap") { phase = "session"; render(); return; }
   if (phase === "session") { phase = "systemprompt"; render(); return; }
   if (phase === "systemprompt") { phase = "model"; render(); return; }
   if (phase === "model") { phase = "apikey"; render(); return; }
@@ -126,7 +135,8 @@ function render() {
   else if (phase === "apikey") renderApiKey();
   else if (phase === "model") renderModel();
   else if (phase === "systemprompt") renderPersonality();
-  else renderSession();
+  else if (phase === "session") renderSession();
+  else renderCostCap();
 }
 
 function navBtns(label) {
@@ -254,7 +264,7 @@ function renderSession() {
     <div class="session-list">
       ${SESSION_OPTIONS.map(m=>`<button class="pixel btn session-btn${vals.sessionMinutes===m?" primary":""}" data-m="${m}">${m} min</button>`).join("")}
     </div>
-    ${navBtns("create")}
+    ${navBtns("next")}
   `;
   document.querySelectorAll(".session-btn").forEach(b => {
     b.onclick = () => {
@@ -263,7 +273,26 @@ function renderSession() {
       b.classList.add("primary");
     };
   });
-  el("nb").onclick = () => createBot();
+  el("nb").onclick = () => { phase = "costcap"; render(); };
+  bindNav();
+}
+
+function renderCostCap() {
+  el("step-content").innerHTML = `
+    <div class="step-icon pixel">${STATIC_STEPS.length+6}</div>
+    <div class="step-title">cost cap</div>
+    <div class="step-desc">stop the bot if it spends more than this in usd (leave blank for no cap)</div>
+    <input class="input" type="number" id="inp" min="0" max="25" step="0.05" value="${vals.costCapUsd || ""}" placeholder="0.50" autocomplete="off">
+    <div class="step-desc" style="font-size:0.85rem;opacity:0.7;margin-top:0.5rem">range $0.05 to $25.00, optional</div>
+    ${navBtns("create")}
+  `;
+  const inp = el("inp"); inp.focus();
+  inp.onkeydown = e => { if (e.key === "Enter") el("nb").click(); };
+  el("nb").onclick = () => {
+    const v = parseFloat(inp.value);
+    vals.costCapUsd = Number.isFinite(v) && v > 0 ? Math.min(25, Math.max(0.05, v)) : 0;
+    createBot();
+  };
   bindNav();
 }
 
@@ -300,7 +329,7 @@ function renderCooldown(seconds) {
 async function createBot() {
   el("step-content").innerHTML = `<div class="status-header blink">connecting...</div>`;
   try {
-    const res = await fetch("/api/bot",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ip:vals.ip,port:parseInt(vals.port),version:vals.version,botName:vals.botName,apiKey:vals.apiKey,provider:vals.provider,model:vals.model,systemPrompt:vals.systemPrompt,sessionMinutes:vals.sessionMinutes})});
+    const res = await fetch("/api/bot",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ip:vals.ip,port:parseInt(vals.port),version:vals.version,botName:vals.botName,apiKey:vals.apiKey,provider:vals.provider,model:vals.model,systemPrompt:vals.systemPrompt,sessionMinutes:vals.sessionMinutes,costCapUsd:vals.costCapUsd})});
     const r = await res.json();
     if (r.success) { showView("dashboard"); init(); return; }
     if (res.status === 429 && r.retry_after) { renderCooldown(r.retry_after); return; }
