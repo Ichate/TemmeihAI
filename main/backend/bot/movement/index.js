@@ -18,6 +18,8 @@ import {
   clearWaypoints, runQueue, startPatrol, cancelRoutes,
 } from "./waypoints.js";
 import { turnAround, lookBehind, wave, nod, shakeHead, bow, celebrate } from "./gestures.js";
+import { mountNearest, dismount, isRiding, findNearestVehicle } from "./riding.js";
+import { startSwimWatcher, stopSwimWatcher, isSwimming } from "./swim.js";
 import { MODE, SPEED } from "./config.js";
 
 let speakHook = null;
@@ -46,6 +48,7 @@ export function initMovement(bot, opts = {}) {
 
   if (opts.wander !== false) startWander();
   startPersonalSpace();
+  startSwimWatcher({ onNarrate: narrate });
 
   log.info("movement: initialized");
   return true;
@@ -62,6 +65,7 @@ export function teardownMovement() {
   stopWatchdog();
   stopPersonalSpace();
   stopMirror();
+  stopSwimWatcher();
   cancelRoutes();
   resetToIdle("teardown");
 }
@@ -132,6 +136,11 @@ export const movement = {
   shakeHead,
   bow,
   celebrate,
+  mountNearest,
+  dismount,
+  isRiding,
+  findNearestVehicle,
+  isSwimming,
   status: describeStatus,
   context: describeForContext,
   currentMode,

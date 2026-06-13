@@ -78,6 +78,18 @@ export const GESTURE_GAP_MS = 350;
 export const MID_WALK_PAUSE_CHANCE = 0.12;
 export const MID_WALK_PAUSE_MS = 1200;
 
+export const SWIM_CHECK_MS = 300;
+export const SWIM_OXYGEN_LOW = 8;
+export const SWIM_SURFACE_PROBE = 2;
+
+export const RIDE_SCAN_RADIUS = 12;
+export const RIDE_MOUNT_REACH = 2;
+export const RIDEABLE = new Set([
+  "boat", "chest_boat", "minecart", "chest_minecart", "hopper_minecart",
+  "horse", "donkey", "mule", "skeleton_horse", "zombie_horse",
+  "pig", "strider", "camel", "llama", "trader_llama",
+]);
+
 export const SPEED = {
   SNEAK: "sneak",
   WALK: "walk",

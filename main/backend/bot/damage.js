@@ -2,12 +2,24 @@ import { state, getBot } from "./ctx.js";
 import { findNearestHostile, findNearbyPlayer } from "./state.js";
 
 export function describeDamageSource() {
+  const bot = getBot();
+  if (bot?.entity) {
+    const oxygen = typeof bot.oxygenLevel === "number" ? bot.oxygenLevel : 20;
+    if (bot.entity.isInWater && oxygen <= 2) return "drowning (out of air)";
+    if (bot.entity.isInLava) return "lava";
+    try {
+      const Vec = bot.entity.position.constructor;
+      const feet = bot.blockAt(new Vec(Math.floor(bot.entity.position.x), Math.floor(bot.entity.position.y), Math.floor(bot.entity.position.z)));
+      const fname = (feet && feet.name ? feet.name : "").toLowerCase();
+      if (/fire|magma|campfire/.test(fname)) return "standing in fire";
+      if (/cactus|sweet_berry/.test(fname)) return "a spiky plant";
+    } catch {}
+  }
   if (state.lastDamageSource && Date.now() - state.lastDamageSource.time < 1500) {
     const src = state.lastDamageSource;
     state.lastDamageSource = null;
     return src.isPlayer ? `${src.name} (a player)` : src.name;
   }
-  const bot = getBot();
   if (state.fallStartY != null && bot?.entity && (state.fallStartY - bot.entity.position.y) > 3) {
     return "fall damage";
   }

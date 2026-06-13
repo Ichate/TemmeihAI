@@ -43,6 +43,7 @@ export const state = {
 
   movementMode: "idle",
   movementTarget: null,
+  swimming: false,
 };
 
 export function setBot(b) { state.bot = b; }

@@ -42,6 +42,10 @@ export function buildMovements(bot) {
     m.infiniteLiquidDropdownDistance = false;
     m.canOpenDoors = true;
     m.allowEntityDetection = true;
+    m.allowSwimming = true;
+    try {
+      if (typeof m.liquidCost === "number") m.liquidCost = 2;
+    } catch {}
 
     if (mcData && mcData.blocksByName) {
       const water = mcData.blocksByName.water;

@@ -1,6 +1,7 @@
 import { getBot } from "./ctx.js";
 import { log } from "./log.js";
 import { movement } from "./movement/index.js";
+import { inventory } from "./inventory/index.js";
 
 export const TOOL_DEFS = [
   {
@@ -238,6 +239,111 @@ export const TOOL_DEFS = [
       required: ["kind"],
     },
   },
+  {
+    name: "mount",
+    description: "Walk to the nearest boat, minecart, or rideable animal (horse, pig, etc) and get on it. Use for 'get in the boat', 'ride the horse', 'hop in the minecart'.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "dismount",
+    description: "Get off whatever you are currently riding. Use for 'get off', 'hop out', 'get out of the boat'.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "hold_item",
+    description: "Equip/hold an item in your hand. Picks the best one you have of that kind. Use for 'hold a sword', 'get your pickaxe out', 'hold the bread'.",
+    parameters: {
+      type: "object",
+      properties: { item: { type: "string", description: "what to hold, e.g. sword, pickaxe, bread, torch" } },
+      required: ["item"],
+    },
+  },
+  {
+    name: "put_away",
+    description: "Put away whatever you are currently holding (unequip your hand). Use for 'put that away', 'stop holding that', 'empty your hands'.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "wear_armor",
+    description: "Put on the best armor you have in each slot. Use for 'put your armor on', 'gear up', 'armor up'.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "drop_item",
+    description: "Drop items on the ground. Drops what you're holding if no item given. Use for 'drop that', 'drop the wood', 'drop 10 cobblestone'.",
+    parameters: {
+      type: "object",
+      properties: {
+        item: { type: "string", description: "what to drop. omit to drop what you're holding" },
+        count: { type: "integer", description: "how many. omit to drop all of that item" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "give_item",
+    description: "Walk to a player and hand them items by tossing them over. Use for 'give me 10 wood', 'hand steve your sword', 'bring me some food'.",
+    parameters: {
+      type: "object",
+      properties: {
+        player: { type: "string", description: "who to give it to. omit for the closest player" },
+        item: { type: "string", description: "what to give. omit to give what you're holding" },
+        count: { type: "integer", description: "how many. omit to give all of that item" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "what_do_you_have",
+    description: "Report what you're carrying. Use when asked 'what do you have', 'check your inventory', 'what's in your bag', 'how much food'.",
+    parameters: {
+      type: "object",
+      properties: { focus: { type: "string", enum: ["all", "food", "armor", "space"], description: "what to report on" } },
+      required: [],
+    },
+  },
+  {
+    name: "pick_up_item",
+    description: "Walk to and grab a dropped item off the ground. If your inventory is full it will drop something low-value to make room for something better. Use for 'grab that', 'pick that up', 'get the loot'.",
+    parameters: {
+      type: "object",
+      properties: { valuable: { type: "boolean", description: "prefer the most valuable item nearby instead of the closest" } },
+      required: [],
+    },
+  },
+  {
+    name: "consume_item",
+    description: "Eat food, drink a potion, or use a consumable. Use for 'eat something', 'drink that potion', 'eat a golden apple', 'have some food'. Omit item to use what you're holding, or 'food' to eat the best food you have.",
+    parameters: {
+      type: "object",
+      properties: { item: { type: "string", description: "what to consume, e.g. potion, golden_apple, bread, or 'food' for best food. omit for held item" } },
+      required: [],
+    },
+  },
+  {
+    name: "hold_totem",
+    description: "Pull out a totem of undying into your off-hand for protection. Use for 'hold a totem', 'get your totem ready'.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "count_item",
+    description: "Say how many of a specific item you have. Use for 'how much wood do you have', 'how many arrows', 'do you have diamonds'.",
+    parameters: {
+      type: "object",
+      properties: { item: { type: "string", description: "the item to count" } },
+      required: ["item"],
+    },
+  },
+  {
+    name: "drop_everything",
+    description: "Drop your entire inventory on the ground. Use for 'drop everything', 'empty your bags', 'dump it all'.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "organize_inventory",
+    description: "Tidy up by merging partial stacks of the same item together. Use for 'sort your inventory', 'tidy up', 'organize your stuff'.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
 ];
 
 export function toolNames() {
@@ -336,6 +442,58 @@ export async function executeTool(name, input) {
         if (k === "celebrate") return await movement.celebrate();
         return { ok: false, reason: "unknown gesture" };
       }
+      case "mount":
+        return await movement.mountNearest();
+      case "dismount":
+        return await movement.dismount();
+      case "hold_item": {
+        if (!a.item) return { ok: false, reason: "what should i hold?" };
+        const w = a.item.toLowerCase();
+        if (/^(sword|axe|weapon)$/.test(w)) {
+          if (w === "weapon") return await inventory.equipBestWeapon();
+        }
+        if (/^(pickaxe|pick|shovel|spade|hoe)$/.test(w)) {
+          const kind = w === "pick" ? "pickaxe" : (w === "spade" ? "shovel" : w);
+          return await inventory.equipBestTool(kind);
+        }
+        return await inventory.equipNamed(a.item);
+      }
+      case "put_away":
+        return await inventory.unequipHand();
+      case "wear_armor":
+        return await inventory.equipArmorSet();
+      case "drop_item": {
+        const count = Number.isFinite(a.count) ? a.count : null;
+        return await inventory.dropItem(a.item || null, count);
+      }
+      case "give_item": {
+        const count = Number.isFinite(a.count) ? a.count : null;
+        return await inventory.giveToPlayer(a.player || null, a.item || null, count);
+      }
+      case "what_do_you_have": {
+        const focus = a.focus || "all";
+        if (focus === "food") return inventory.foodReport();
+        if (focus === "armor") return inventory.armorReport();
+        if (focus === "space") return inventory.spaceReport();
+        return inventory.carrySummary();
+      }
+      case "pick_up_item":
+        return await inventory.pickUpNearest({ preferValuable: !!a.valuable });
+      case "consume_item": {
+        const w = (a.item || "").toLowerCase();
+        if (!w) return await inventory.useHeld();
+        if (w === "food" || w === "anything") return await inventory.eatBestFood();
+        return await inventory.useNamed(a.item);
+      }
+      case "hold_totem":
+        return await inventory.holdTotem();
+      case "count_item":
+        if (!a.item) return { ok: false, reason: "count what?" };
+        return inventory.countItem(a.item);
+      case "drop_everything":
+        return await inventory.dropEverything();
+      case "organize_inventory":
+        return await inventory.organizeInventory();
       default:
         return { ok: false, reason: `unknown tool ${name}` };
     }

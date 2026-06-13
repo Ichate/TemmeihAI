@@ -28,9 +28,22 @@ invite a bot to your server, it joins and just lives there. walks around on its 
 - gestures: waves, nods, shakes its head, bows, turns around, looks behind it, jumps around to celebrate
 - jumps, crouches, changes speed between sneak / walk / sprint
 - it picks all of this itself through the model's tool calls, so it acts because it decided to, not because a keyword matched
-- runs on pathfinder for the actual walking: parkour, jumping gaps, swimming, opening doors, avoiding lava and other hazards
+- runs on pathfinder for the actual walking: parkour, jumping gaps, opening doors, avoiding lava and other hazards
+- swims properly instead of sinking, stays at the surface in water and comes up for air instead of drowning on the bottom
+- gets in and out of boats, minecarts, and rides animals like horses and pigs
 - arrival is only reported when it physically gets there, and it tells you honestly if it can't find a path or gets stuck
 - one thing at a time, with an order to it: surviving comes before your commands, your commands come before its own wandering
+
+**items**
+- tells you what it's carrying, or how much of one thing it has
+- holds what you ask for and picks the best one it owns (asking for a sword with a stone and a diamond one gets you the diamond), same for tools and armor
+- puts on its best armor, puts things away
+- drops what it's holding, a named item, or an exact count, or empties the whole bag
+- gives you items by walking over and handing them across, gives what it has if you ask for more
+- picks dropped items up off the ground, and if its bag is full it'll dump something low-value to grab something better (but won't throw away something worth more than what it's grabbing)
+- eats food, drinks potions, holds a totem
+- merges loose stacks of the same thing together
+- knows real items from how you talk, "wood" finds logs and planks, "sword" finds the diamond sword
 
 **world awareness**
 the bot gets a `[current game state: ...]` line every turn with health, hunger, position, dimension, biome, time of day, weather, held item, inventory, nearby players + mobs, xp level. light version for idle chatter, full version for real conversations and combat.
@@ -38,7 +51,7 @@ the bot gets a `[current game state: ...]` line every turn with health, hunger, 
 **survival**
 - auto-eats when hunger drops, knows ~40 food items, swaps back to whatever it was holding
 - runs from danger when it's low and something hostile is close
-- damage source tracking so it knows what hit it
+- knows what's hurting it, a mob, a player, a fall, drowning, lava, fire, or a cactus, instead of just saying "something hit me"
 
 **reacts to stuff (each with its own cooldown so it doesn't spam)**
 - arrival line on first spawn
@@ -96,7 +109,7 @@ open http://localhost:3000
 4. pick model, optional personality, session length, optional cost cap
 5. bot joins and starts doing its thing
 
-then just talk to it in chat. try "come here", "follow me", "go to 100 64 -200", "stop", "this is home", "go home", "wait here", "climb up", "wave", "patrol between home and the gate".
+then just talk to it in chat. try "come here", "follow me", "go to 100 64 -200", "stop", "this is home", "go home", "wait here", "climb up", "wave", "patrol between home and the gate", "hold a sword", "give me 10 wood", "what do you have", "drop everything", "eat something".
 
 ## project layout
 
@@ -135,13 +148,29 @@ main/
         wander.js              roams on its own
         combat-move.js         dodge, keep distance, retreat
         social.js              personal space, mirror a player
+        swim.js                stays afloat, surfaces for air
+        riding.js              boats, minecarts, animals
         poi.js                 finds interesting nearby spots to wander to
         watchdog.js            lost-target / flee timeout / guard return
         index.js               init + public api
+      inventory/               carrying and using items
+        config.js              material tiers, item values, aliases
+        read.js                what it's holding / carrying
+        match.js               turns "wood" into real item names
+        value.js               scores items junk vs valuable
+        equip.js               hold best gear, armor, unequip
+        transfer.js            drop and give items
+        pickup.js              grab items, swap out junk when full
+        consume.js             eat food, drink potions, totem
+        organize.js            merge loose stacks
+        summary.js             carry / food / count reports
+        index.js               public api
 ```
 
 ## coming soon
 
+- chests and furnaces, stashing loot and smelting
+- crafting tools and items
 - combat, actually fighting back instead of just running
 - mining and gathering
 - live chat feed on the dashboard
