@@ -2,6 +2,7 @@ import { getBot } from "./ctx.js";
 import { log } from "./log.js";
 import { movement } from "./movement/index.js";
 import { inventory } from "./inventory/index.js";
+import { combat } from "./combat/index.js";
 
 export const TOOL_DEFS = [
   {
@@ -344,6 +345,75 @@ export const TOOL_DEFS = [
     description: "Tidy up by merging partial stacks of the same item together. Use for 'sort your inventory', 'tidy up', 'organize your stuff'.",
     parameters: { type: "object", properties: {}, required: [] },
   },
+  {
+    name: "attack",
+    description: "Fight something. Attack a specific mob type, the nearest hostile, or whatever is threatening you. Use for 'kill that zombie', 'fight back', 'attack the skeleton', 'defend yourself'. Do NOT use this to attack players - use attack_player for that.",
+    parameters: {
+      type: "object",
+      properties: { mob: { type: "string", description: "mob type to attack like zombie, skeleton, spider. omit to fight the nearest/most dangerous hostile" } },
+      required: [],
+    },
+  },
+  {
+    name: "hunt",
+    description: "Go find and kill a specific kind of creature further away. Use for 'go kill a cow', 'hunt a pig', 'go get that sheep'. Works on animals and mobs.",
+    parameters: {
+      type: "object",
+      properties: { mob: { type: "string", description: "the creature to hunt, e.g. cow, pig, skeleton" } },
+      required: ["mob"],
+    },
+  },
+  {
+    name: "attack_player",
+    description: "Fight another PLAYER. Only use this when a player explicitly asks you to fight/duel/pvp them, or names a player to attack. This starts pvp with that player. Use for 'fight me', 'pvp steve', 'attack that player'.",
+    parameters: {
+      type: "object",
+      properties: { player: { type: "string", description: "username of the player to fight" } },
+      required: ["player"],
+    },
+  },
+  {
+    name: "stop_fighting",
+    description: "Stop all combat and stand down, including ending any pvp. Use for 'stop fighting', 'calm down', 'stand down', 'peace'.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "set_defense",
+    description: "Turn auto-defense on or off. When on, you fight back when attacked by mobs (or pvp players). Use for 'stop defending yourself', 'don't fight back', 'defend yourself again'.",
+    parameters: {
+      type: "object",
+      properties: { on: { type: "boolean", description: "true to defend when attacked, false to not fight back automatically" } },
+      required: ["on"],
+    },
+  },
+  {
+    name: "protect_player",
+    description: "Stay near a player and automatically fight anything that threatens them. Use for 'protect me', 'guard me', 'watch my back', 'keep me safe', 'protect steve'.",
+    parameters: {
+      type: "object",
+      properties: { player: { type: "string", description: "username to protect. omit for whoever asked" } },
+      required: [],
+    },
+  },
+  {
+    name: "guard_area",
+    description: "Hold the current spot and kill anything hostile that comes near it. Use for 'guard this area', 'defend this spot', 'hold this position', 'keep watch here'.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "fight_alongside",
+    description: "Mark a player as your ally so you fight together and don't attack them, and stay near them in a group fight. Use for 'fight with me', 'we're a team', 'help me fight', 'you're on my side'.",
+    parameters: {
+      type: "object",
+      properties: { player: { type: "string", description: "username of your ally. omit for whoever asked" } },
+      required: [],
+    },
+  },
+  {
+    name: "regroup",
+    description: "Move back to your nearest ally in a fight instead of charging off alone. Use for 'regroup', 'get back here', 'stay with me'.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
 ];
 
 export function toolNames() {
@@ -494,6 +564,26 @@ export async function executeTool(name, input) {
         return await inventory.dropEverything();
       case "organize_inventory":
         return await inventory.organizeInventory();
+      case "attack":
+        return await combat.attackMobByName(a.mob || null);
+      case "hunt":
+        if (!a.mob) return { ok: false, reason: "hunt what?" };
+        return await combat.huntMob(a.mob);
+      case "attack_player":
+        if (!a.player) return { ok: false, reason: "which player?" };
+        return await combat.attackPlayer(a.player);
+      case "stop_fighting":
+        return combat.stopFighting();
+      case "set_defense":
+        return combat.setAutoDefend(!!a.on);
+      case "protect_player":
+        return combat.protectPlayer(a.player || null);
+      case "guard_area":
+        return combat.guardArea();
+      case "fight_alongside":
+        return combat.addFightAlly(a.player || null);
+      case "regroup":
+        return await combat.regroup();
       default:
         return { ok: false, reason: `unknown tool ${name}` };
     }

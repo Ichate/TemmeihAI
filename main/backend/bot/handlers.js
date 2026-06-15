@@ -14,8 +14,24 @@ import { detectIntent } from "./intents.js";
 import { attachDropTracker, consumeDropAttribution } from "./drops.js";
 import { handleDisconnect } from "./session.js";
 import { initMovement, resetMovementForRespawn, movement, MODE } from "./movement/index.js";
+import { combat } from "./combat/index.js";
 
 let movementReady = false;
+let combatReady = false;
+
+function findAttackerOf(bot, victim) {
+  if (!bot || !bot.entities || !victim || !victim.position) return null;
+  let best = null;
+  let bestDist = 5;
+  for (const id in bot.entities) {
+    const e = bot.entities[id];
+    if (!e || !e.position || e === victim) continue;
+    if (e.type === "player" && e.username === bot.username) continue;
+    const d = victim.position.distanceTo(e.position);
+    if (d <= bestDist) { bestDist = d; best = e; }
+  }
+  return best;
+}
 
 function lookAtClosest() {
   const bot = getBot();
@@ -134,6 +150,20 @@ export function attachHandlers(bot) {
       resetMovementForRespawn();
     }
 
+    if (!combatReady) {
+      combat.initCombat({
+        onNarrate: (text, tag) => {
+          if (onCooldown(`combatnarrate:${tag}`, 8000)) return;
+          proactiveSpeak(`combat:${tag}`, `Something happened in your fight: ${text}. Mention it casually in one short line.`);
+        },
+        onCallout: (instruction, tag) => {
+          if (onCooldown(`callout:${tag}`, 6000)) return;
+          proactiveSpeak(`callout:${tag}`, instruction);
+        },
+      });
+      combatReady = true;
+    }
+
     state.lookInterval = setInterval(() => {
       lookAtClosest();
       checkTimeOfDay();
@@ -179,6 +209,10 @@ export function attachHandlers(bot) {
     if (!bot) return;
 
     if (entity === bot.entity) {
+      if (combatReady) {
+        const attacker = findAttackerOf(bot, bot.entity);
+        if (attacker) combat.onAttacked(attacker);
+      }
       if (state.lowHealthAnnounced) return;
       if (onCooldown("hurt", 25000)) return;
       const source = describeDamageSource();
@@ -257,8 +291,18 @@ export function attachHandlers(bot) {
   });
 
   bot.on("death", () => {
+    if (combatReady) {
+      if (bot.username) combat.onEntityDead(bot.username);
+      combat.stopFighting();
+    }
     if (onCooldown("death", 5000)) return;
     proactiveSpeak("death", "You just died in the game and respawned. React to dying, one short line.");
+  });
+
+  bot.on("entityDead", (entity) => {
+    if (!combatReady || !entity) return;
+    const nm = entity.username || entity.name || entity.displayName;
+    if (nm) combat.onEntityDead(nm);
   });
 
   bot.on("rain", () => {

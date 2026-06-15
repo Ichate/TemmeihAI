@@ -44,6 +44,16 @@ export const state = {
   movementMode: "idle",
   movementTarget: null,
   swimming: false,
+  falling: false,
+
+  combatMode: "idle",
+  combatTarget: null,
+  combatTargetName: null,
+  pvpOptIn: new Set(),
+  allies: new Set(),
+  guardAnchor: null,
+  protectName: null,
+  attackerHits: new Map(),
 };
 
 export function setBot(b) { state.bot = b; }

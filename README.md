@@ -6,7 +6,7 @@ ai bots that actually play minecraft with you.
 
 ## what it does
 
-invite a bot to your server, it joins and just lives there. walks around on its own, talks to people in chat, reacts to stuff happening around it. eats when it's hungry, panics when it's at 2 hearts, comments when it rains, greets new players. tell it to come over or follow you and it actually walks to you. you pick the provider (anthropic / openai / openrouter / gemini) and watch the token usage and cost tick up live on the dashboard.
+invite a bot to your server, it joins and just lives there. walks around on its own, talks to people in chat, reacts to stuff happening around it. eats when it's hungry, panics when it's at 2 hearts, comments when it rains, greets new players. tell it to come over or follow you and it actually walks to you, tell it to kill a mob or guard you and it fights. you pick the provider (anthropic / openai / openrouter / gemini) and watch the token usage and cost tick up live on the dashboard.
 
 ## features
 
@@ -44,6 +44,21 @@ invite a bot to your server, it joins and just lives there. walks around on its 
 - eats food, drinks potions, holds a totem
 - merges loose stacks of the same thing together
 - knows real items from how you talk, "wood" finds logs and planks, "sword" finds the diamond sword
+
+**combat**
+- fights mobs on command ("kill that zombie") or hunts a creature down ("go kill a cow")
+- fights back on its own when something attacks it, and spots nearby hostiles on sight instead of waiting to get hit
+- matches the server version: on old versions (under 1.9) it spam-clicks, on newer ones it waits out the attack cooldown so every hit lands, and jumps for crits
+- sprints to close in, strafes while swinging, gives up a chase that's going nowhere
+- uses a bow if it has one: aims ahead of moving targets, keeps its distance, backs up while shooting when something rushes it
+- backs off from creepers until the moment's right instead of blowing up next to one
+- won't chase a target into lava or off a cliff
+- handles a crowd: goes for whatever's hurting it most, finishes off the weakest first, switches to a creeper if one shows up
+- looks after itself mid-fight: eats, drinks a potion, pops a totem, and runs when it's about to die, then comes back once it's patched up
+- pvp only when a player actually asks for it ("fight me", "pvp steve"), never random players. if it dies or the other player dies the duel's over, two people can both pick a fight, and it keeps chatting while it swings
+- protects a player (stays near them and kills what comes at them) or guards a spot
+- fight alongside it as an ally and it won't hit you, and stays near you in a group scrap
+- throws out short lines mid-fight, taunts before a duel, calls out a victory
 
 **world awareness**
 the bot gets a `[current game state: ...]` line every turn with health, hunger, position, dimension, biome, time of day, weather, held item, inventory, nearby players + mobs, xp level. light version for idle chatter, full version for real conversations and combat.
@@ -109,7 +124,7 @@ open http://localhost:3000
 4. pick model, optional personality, session length, optional cost cap
 5. bot joins and starts doing its thing
 
-then just talk to it in chat. try "come here", "follow me", "go to 100 64 -200", "stop", "this is home", "go home", "wait here", "climb up", "wave", "patrol between home and the gate", "hold a sword", "give me 10 wood", "what do you have", "drop everything", "eat something".
+then just talk to it in chat. try "come here", "follow me", "go to 100 64 -200", "stop", "this is home", "go home", "wait here", "climb up", "wave", "patrol between home and the gate", "hold a sword", "give me 10 wood", "what do you have", "drop everything", "eat something", "kill that zombie", "protect me", "guard this spot", "fight me".
 
 ## project layout
 
@@ -165,13 +180,28 @@ main/
         organize.js            merge loose stacks
         summary.js             carry / food / count reports
         index.js               public api
+      combat/                  fighting
+        config.js              ranges, cooldowns, mob danger ratings
+        version.js             spam vs cooldown combat by server version
+        targeting.js           pick / score / switch targets
+        threat.js              health checks, who's hitting hardest
+        melee.js               swing timing, crits, strafe, gap-close
+        ranged.js              bow aiming, kiting
+        defense.js             shield, heal/eat/totem, creeper hit-and-run
+        hazard.js              don't chase into lava or off cliffs
+        protect.js             guard a player or a spot
+        allies.js              who it's fighting alongside
+        callouts.js            short lines mid-fight
+        pvp.js                 the pvp opt-in rules
+        watch.js               spots threats on sight
+        controller.js          the fight loop
+        index.js               init + public api
 ```
 
 ## coming soon
 
 - chests and furnaces, stashing loot and smelting
 - crafting tools and items
-- combat, actually fighting back instead of just running
 - mining and gathering
 - live chat feed on the dashboard
 

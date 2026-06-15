@@ -144,6 +144,7 @@ export const movement = {
   status: describeStatus,
   context: describeForContext,
   currentMode,
+  followName: () => move.followName || null,
   isBusy,
   isMoving,
   nearestPlayerEntity,
