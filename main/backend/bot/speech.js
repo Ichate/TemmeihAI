@@ -53,7 +53,13 @@ const MOVING_TOOLS = new Set([
 
 const CONTINUOUS_TOOLS = new Set(["follow_player", "tail_player", "lead_player", "stay_here", "mirror_player"]);
 
-function describeToolForReply(name, reason) {
+const REPORT_TOOLS = new Set([
+  "what_do_you_have", "count_item", "check_container", "furnace_status",
+]);
+
+function describeToolForReply(name, reason, ok) {
+  if (!ok) return reason || "couldn't do that";
+  if (REPORT_TOOLS.has(name)) return reason || "nothing";
   if (CONTINUOUS_TOOLS.has(name)) return reason || "on it";
   if (MOVING_TOOLS.has(name)) return reason || "on my way";
   return reason || "done";
@@ -72,13 +78,15 @@ async function executeCalls(toolCalls) {
     let outcome;
     if (!r || !r.ok) {
       outcome = `failed: ${(r && r.reason) || "could not do it"}`;
+    } else if (REPORT_TOOLS.has(call.name)) {
+      outcome = `here's the answer, tell the player this in your own words: ${r.reason || "nothing"}`;
     } else if (MOVING_TOOLS.has(call.name) && !CONTINUOUS_TOOLS.has(call.name)) {
       outcome = `ok, ${r.reason || "on my way"}. you are now walking there - you have NOT arrived. say something brief like 'on my way'. do NOT say you reached or made it; you will announce arrival yourself later when you actually get there.`;
     } else {
       outcome = `done: ${r.reason || "ok"}`;
     }
     log.info(`tool ${call.name}: ${r && r.ok ? "ok" : "FAIL"} - ${r && r.reason}`);
-    results.push({ id: call.id, name: call.name, output: outcome, ok: !!(r && r.ok) });
+    results.push({ id: call.id, name: call.name, output: outcome, ok: !!(r && r.ok), reason: r && r.reason });
   }
   return results;
 }
@@ -126,7 +134,7 @@ export async function processBatch() {
     }
 
     if (!finalText && lastResults && lastResults.length) {
-      const parts = lastResults.map(r => describeToolForReply(r.name, r.ok ? null : "couldn't do that"));
+      const parts = lastResults.map(r => describeToolForReply(r.name, r.reason, r.ok));
       finalText = parts.filter(Boolean).join(", ");
     }
 

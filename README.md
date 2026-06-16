@@ -6,7 +6,7 @@ ai bots that actually play minecraft with you.
 
 ## what it does
 
-invite a bot to your server, it joins and just lives there. walks around on its own, talks to people in chat, reacts to stuff happening around it. eats when it's hungry, panics when it's at 2 hearts, comments when it rains, greets new players. tell it to come over or follow you and it actually walks to you, tell it to kill a mob or guard you and it fights. you pick the provider (anthropic / openai / openrouter / gemini) and watch the token usage and cost tick up live on the dashboard.
+invite a bot to your server, it joins and just lives there. walks around on its own, talks to people in chat, reacts to stuff happening around it. eats when it's hungry, panics when it's at 2 hearts, comments when it rains, greets new players. tell it to come over or follow you and it actually walks to you, tell it to kill a mob or guard you and it fights, tell it to mine the ore or chop the tree or stash the loot and it does. you pick the provider (anthropic / openai / openrouter / gemini) and watch the token usage and cost tick up live on the dashboard.
 
 ## features
 
@@ -59,6 +59,19 @@ invite a bot to your server, it joins and just lives there. walks around on its 
 - protects a player (stays near them and kills what comes at them) or guards a spot
 - fight alongside it as an ally and it won't hit you, and stays near you in a group scrap
 - throws out short lines mid-fight, taunts before a duel, calls out a victory
+
+**working the world**
+- mines and breaks blocks, walking over and grabbing the drops, picking the right tool for what it's breaking (pickaxe for stone, axe for wood, shovel for dirt)
+- mines a whole connected vein at once ("mine all this iron"), or clears out an area
+- chops a whole tree, the entire trunk, pillaring up to reach the top of tall ones
+- digs down safely, won't dig into lava or off a drop, won't break bedrock
+- places blocks, against a real surface
+- harvests ripe crops and replants them
+- puts items in chests and takes them out, by name and count, checks what's inside, and can dump everything but keep its tools and food
+- smelts in furnaces, loading fuel on its own, and tells you how far along it is
+- fills and empties buckets, milks cows, lights things with flint and steel
+- presses buttons, pulls levers, opens doors and gates
+- on a long job it stops to eat if it gets hungry, stops when its bag is full instead of wasting drops, and fights back if something jumps it then carries on
 
 **world awareness**
 the bot gets a `[current game state: ...]` line every turn with health, hunger, position, dimension, biome, time of day, weather, held item, inventory, nearby players + mobs, xp level. light version for idle chatter, full version for real conversations and combat.
@@ -124,7 +137,7 @@ open http://localhost:3000
 4. pick model, optional personality, session length, optional cost cap
 5. bot joins and starts doing its thing
 
-then just talk to it in chat. try "come here", "follow me", "go to 100 64 -200", "stop", "this is home", "go home", "wait here", "climb up", "wave", "patrol between home and the gate", "hold a sword", "give me 10 wood", "what do you have", "drop everything", "eat something", "kill that zombie", "protect me", "guard this spot", "fight me".
+then just talk to it in chat. try "come here", "follow me", "go to 100 64 -200", "stop", "this is home", "go home", "wait here", "climb up", "wave", "patrol between home and the gate", "hold a sword", "give me 10 wood", "what do you have", "drop everything", "eat something", "kill that zombie", "protect me", "guard this spot", "fight me", "mine that", "mine all this iron", "chop that tree", "put your wood in the chest", "what's in the chest", "smelt the iron", "harvest the wheat".
 
 ## project layout
 
@@ -196,13 +209,30 @@ main/
         watch.js               spots threats on sight
         controller.js          the fight loop
         index.js               init + public api
+      world/                   working with blocks and the world
+        config.js              reach, tool-for-block, hazards, timeouts
+        reach.js               get next to a block and face it
+        blocks.js              find a target block
+        safety.js              don't mine into lava or off a drop
+        mine.js                break blocks, vein-mine, area clear, dig down
+        place.js               place a block against a surface
+        tree.js                chop a whole tree, pillar up tall ones
+        farm.js                harvest and replant crops
+        collect.js             grab the drops off the ground
+        workguard.js           eat / stop-when-full / fight mid-job
+        containers.js          chests: deposit, withdraw, stash, list
+        furnace.js             smelt, fuel, collect, status
+        bucket.js              fill/empty water and lava, milk cows
+        ignite.js              flint and steel
+        use.js                 buttons, levers, doors
+        index.js               public api
 ```
 
 ## coming soon
 
-- chests and furnaces, stashing loot and smelting
 - crafting tools and items
-- mining and gathering
+- gathering loops, "go get me 20 wood"
+- building, walls and shelters
 - live chat feed on the dashboard
 
 ## license

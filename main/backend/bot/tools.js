@@ -3,6 +3,7 @@ import { log } from "./log.js";
 import { movement } from "./movement/index.js";
 import { inventory } from "./inventory/index.js";
 import { combat } from "./combat/index.js";
+import { world } from "./world/index.js";
 
 export const TOOL_DEFS = [
   {
@@ -414,6 +415,178 @@ export const TOOL_DEFS = [
     description: "Move back to your nearest ally in a fight instead of charging off alone. Use for 'regroup', 'get back here', 'stay with me'.",
     parameters: { type: "object", properties: {}, required: [] },
   },
+  {
+    name: "mine_block",
+    description: "Break/mine blocks. Walks to it, equips the right tool, breaks it. Use for 'mine that', 'break the block', 'mine some stone', 'chop that tree', 'get me 10 cobblestone'. Omit block to break what you're looking at.",
+    parameters: {
+      type: "object",
+      properties: {
+        block: { type: "string", description: "block type to mine, e.g. stone, oak_log, iron_ore. omit to break what you're looking at" },
+        count: { type: "integer", description: "how many to mine. omit for one" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "dig_down",
+    description: "Dig straight down a few blocks, safely (stops at lava or a drop). Use for 'dig down', 'go down'.",
+    parameters: {
+      type: "object",
+      properties: { depth: { type: "integer", description: "how many blocks down. omit for 3" } },
+      required: [],
+    },
+  },
+  {
+    name: "place_block",
+    description: "Place a block from your inventory. Use for 'place a block', 'block that hole', 'put down a torch', 'place some dirt'.",
+    parameters: {
+      type: "object",
+      properties: { block: { type: "string", description: "what to place, e.g. dirt, cobblestone, torch. omit to use any block you have" } },
+      required: [],
+    },
+  },
+  {
+    name: "store_items",
+    description: "Put items into a nearby chest or container. Walks to it, opens it, deposits. Use for 'put your wood in the chest', 'store the loot', 'stash everything'.",
+    parameters: {
+      type: "object",
+      properties: {
+        item: { type: "string", description: "what to store. omit to store everything" },
+        count: { type: "integer", description: "how many. omit for all" },
+        container: { type: "string", description: "kind of container like chest, barrel. omit for nearest" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "take_items",
+    description: "Take items out of a nearby chest or container. Use for 'grab the food from the chest', 'take the iron out of the barrel', 'get everything from the chest'.",
+    parameters: {
+      type: "object",
+      properties: {
+        item: { type: "string", description: "what to take. omit to take everything" },
+        count: { type: "integer", description: "how many. omit for all" },
+        container: { type: "string", description: "kind of container. omit for nearest" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "check_container",
+    description: "Look inside a nearby chest or container and report what's in it. Use for 'what's in the chest', 'check the barrel'.",
+    parameters: {
+      type: "object",
+      properties: { container: { type: "string", description: "kind of container. omit for nearest" } },
+      required: [],
+    },
+  },
+  {
+    name: "smelt",
+    description: "Smelt or cook something in a nearby furnace, loading fuel automatically. Use for 'smelt the iron ore', 'cook the food', 'smelt this'.",
+    parameters: {
+      type: "object",
+      properties: {
+        item: { type: "string", description: "what to smelt, e.g. iron_ore, raw_beef, sand" },
+        count: { type: "integer", description: "how many. omit for all you have" },
+      },
+      required: ["item"],
+    },
+  },
+  {
+    name: "collect_smelted",
+    description: "Take the finished result out of a nearby furnace. Use for 'grab what's smelted', 'get the iron from the furnace'.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "use_block",
+    description: "Press a button, flip a lever, open a door or gate, or activate a block. Use for 'press the button', 'pull the lever', 'open the door', 'flip the switch'.",
+    parameters: {
+      type: "object",
+      properties: { block: { type: "string", description: "what to use, e.g. button, lever, door. omit for what you're looking at or nearest" } },
+      required: [],
+    },
+  },
+  {
+    name: "vein_mine",
+    description: "Mine a whole connected vein/cluster of the same block (all the touching ore at once), then collect the drops. Use for 'mine all this iron', 'mine the whole vein', 'get all that coal'.",
+    parameters: {
+      type: "object",
+      properties: { block: { type: "string", description: "block type, e.g. iron_ore, coal_ore. omit for what you're looking at" } },
+      required: [],
+    },
+  },
+  {
+    name: "mine_area",
+    description: "Clear out an area of blocks around you. Use for 'clear this area', 'dig out this room', 'clear a 3x3'. Optionally only a specific block type.",
+    parameters: {
+      type: "object",
+      properties: {
+        block: { type: "string", description: "only clear this type. omit to clear everything solid" },
+        radius: { type: "integer", description: "how big, 1-5. omit for 2" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "chop_tree",
+    description: "Chop a whole tree down, the entire trunk, pillaring up for tall ones, then collect the logs. Use for 'chop that tree', 'cut down the tree', 'get me some wood'.",
+    parameters: {
+      type: "object",
+      properties: { block: { type: "string", description: "log type like oak_log. omit for the nearest tree" } },
+      required: [],
+    },
+  },
+  {
+    name: "harvest_crops",
+    description: "Harvest ripe crops nearby and replant them. Use for 'harvest the wheat', 'collect the crops', 'farm this'.",
+    parameters: {
+      type: "object",
+      properties: { crop: { type: "string", description: "crop type like wheat, carrots. omit for any ripe crop" } },
+      required: [],
+    },
+  },
+  {
+    name: "fill_bucket",
+    description: "Scoop water or lava into an empty bucket from a nearby source. Use for 'get some water', 'fill a bucket', 'grab some lava'.",
+    parameters: {
+      type: "object",
+      properties: { liquid: { type: "string", enum: ["water", "lava"], description: "what to scoop" } },
+      required: [],
+    },
+  },
+  {
+    name: "empty_bucket",
+    description: "Pour out the water or lava you're carrying in a bucket. Use for 'dump the water', 'empty the bucket', 'pour out the lava'.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "milk_cow",
+    description: "Milk a nearby cow with an empty bucket. Use for 'milk a cow', 'get some milk'.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "ignite",
+    description: "Light something with flint and steel. Use for 'light the furnace', 'light it up', 'set that on fire', 'light the portal'.",
+    parameters: {
+      type: "object",
+      properties: { block: { type: "string", description: "what to light. omit for what you're looking at" } },
+      required: [],
+    },
+  },
+  {
+    name: "furnace_status",
+    description: "Check how a smelt is going in a nearby furnace, what's cooking and how far along. Use for 'is it done', 'check the furnace', 'how's the smelting'.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "stash_keeping",
+    description: "Dump everything into a nearby chest except the things you want to keep (tools, food, armor by default). Use for 'store everything but your gear', 'stash the junk', 'empty your bag into the chest but keep your tools'.",
+    parameters: {
+      type: "object",
+      properties: { keep: { type: "array", items: { type: "string" }, description: "categories or items to keep: tools, food, armor, valuables, or specific names" } },
+      required: [],
+    },
+  },
 ];
 
 export function toolNames() {
@@ -584,6 +757,54 @@ export async function executeTool(name, input) {
         return combat.addFightAlly(a.player || null);
       case "regroup":
         return await combat.regroup();
+      case "mine_block": {
+        const count = Number.isFinite(a.count) ? a.count : null;
+        if (a.block) return await world.mineNamed(a.block, count);
+        return await world.mineLookingAt();
+      }
+      case "dig_down":
+        return await world.digDown(Number.isFinite(a.depth) ? a.depth : null);
+      case "place_block":
+        return await world.placeBlock(a.block || null, null);
+      case "store_items": {
+        const count = Number.isFinite(a.count) ? a.count : null;
+        return await world.depositItems(a.item || null, count, a.container || null);
+      }
+      case "take_items": {
+        const count = Number.isFinite(a.count) ? a.count : null;
+        return await world.withdrawItems(a.item || null, count, a.container || null);
+      }
+      case "check_container":
+        return await world.listContainer(a.container || null);
+      case "smelt": {
+        if (!a.item) return { ok: false, reason: "smelt what?" };
+        const count = Number.isFinite(a.count) ? a.count : null;
+        return await world.smelt(a.item, count);
+      }
+      case "collect_smelted":
+        return await world.collectSmelted();
+      case "use_block":
+        return await world.useBlock(a.block || null);
+      case "vein_mine":
+        return await world.veinMine(a.block || null);
+      case "mine_area":
+        return await world.mineArea(a.block || null, Number.isFinite(a.radius) ? a.radius : null);
+      case "chop_tree":
+        return await world.chopTree(a.block || null);
+      case "harvest_crops":
+        return await world.harvestCrops(a.crop || null);
+      case "fill_bucket":
+        return await world.fillBucket(a.liquid || "water");
+      case "empty_bucket":
+        return await world.emptyBucket();
+      case "milk_cow":
+        return await world.milkCow();
+      case "ignite":
+        return await world.ignite(a.block || null);
+      case "furnace_status":
+        return await world.smeltStatus();
+      case "stash_keeping":
+        return await world.depositAllExcept(Array.isArray(a.keep) ? a.keep : null, null);
       default:
         return { ok: false, reason: `unknown tool ${name}` };
     }

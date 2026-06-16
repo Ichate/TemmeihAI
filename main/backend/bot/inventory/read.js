@@ -49,11 +49,26 @@ export function hasItem(word, atLeast = 1) {
 
 export function freeSlots() {
   const bot = getBot();
-  if (!bot || !bot.inventory) return 0;
+  if (!bot || !bot.inventory) return 36;
   try {
-    const empty = bot.inventory.emptySlotCount;
-    return typeof empty === "number" ? empty : 0;
-  } catch { return 0; }
+    if (typeof bot.inventory.emptySlotCount === "function") {
+      const n = bot.inventory.emptySlotCount();
+      if (typeof n === "number") return n;
+    }
+    if (typeof bot.inventory.emptySlotCount === "number") {
+      return bot.inventory.emptySlotCount;
+    }
+  } catch {}
+  try {
+    const slots = bot.inventory.slots || [];
+    let used = 0;
+    for (let i = 9; i <= 44; i++) {
+      if (slots[i]) used += 1;
+    }
+    return Math.max(0, 36 - used);
+  } catch {
+    return 36;
+  }
 }
 
 export function isFull() {
