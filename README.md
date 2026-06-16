@@ -230,7 +230,7 @@ main/
 
 ## coming soon
 
-- crafting tools and items
+- crafting tools and items (in works)
 - gathering loops, "go get me 20 wood"
 - building, walls and shelters
 - live chat feed on the dashboard
