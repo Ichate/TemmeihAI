@@ -619,6 +619,116 @@ export const TOOL_DEFS = [
     description: "List what you're able to make right now with your current materials. Use for 'what can you make', 'what can you craft'.",
     parameters: { type: "object", properties: {}, required: [] },
   },
+  {
+    name: "craft_best",
+    description: "Make the best version of a tool or armor piece you have materials for (diamond over iron over stone over wood). Use for 'make a pickaxe', 'make the best sword you can', 'make a helmet'.",
+    parameters: {
+      type: "object",
+      properties: {
+        item: { type: "string", description: "the tool or armor kind, e.g. pickaxe, sword, helmet" },
+        count: { type: "integer", description: "how many. omit for one" },
+      },
+      required: ["item"],
+    },
+  },
+  {
+    name: "craft_until",
+    description: "Make sure you have at least N of something, crafting only the difference. Use for 'make sure you have 10 torches', 'get me up to 64 planks'.",
+    parameters: {
+      type: "object",
+      properties: {
+        item: { type: "string", description: "what to have" },
+        count: { type: "integer", description: "the total amount you should end up with" },
+      },
+      required: ["item", "count"],
+    },
+  },
+  {
+    name: "craft_set",
+    description: "Make a full set of tools or armor of a tier. Use for 'make a full set of iron tools', 'craft diamond armor', 'make stone tools'.",
+    parameters: {
+      type: "object",
+      properties: { set: { type: "string", description: "the set, e.g. 'iron tools', 'diamond armor', 'stone tools'" } },
+      required: ["set"],
+    },
+  },
+  {
+    name: "craft_from_chest",
+    description: "Pull the needed materials out of a nearby chest, then craft the item. Use for 'make a pickaxe from the chest', 'craft planks using the chest'.",
+    parameters: {
+      type: "object",
+      properties: {
+        item: { type: "string", description: "what to make" },
+        count: { type: "integer", description: "how many. omit for one" },
+        container: { type: "string", description: "kind of container. omit for nearest" },
+      },
+      required: ["item"],
+    },
+  },
+  {
+    name: "recipe_info",
+    description: "Say what ingredients are needed to make something, without crafting it. Use for 'what do you need to make a pickaxe', 'what's the recipe for a chest'.",
+    parameters: {
+      type: "object",
+      properties: { item: { type: "string", description: "the item to look up" } },
+      required: ["item"],
+    },
+  },
+  {
+    name: "smith_upgrade",
+    description: "Upgrade diamond gear to netherite at a smithing table (needs a netherite ingot). Use for 'upgrade my pickaxe to netherite', 'make my armor netherite'.",
+    parameters: {
+      type: "object",
+      properties: { item: { type: "string", description: "the diamond gear to upgrade, e.g. diamond_pickaxe" } },
+      required: [],
+    },
+  },
+  {
+    name: "stonecut",
+    description: "Use a stonecutter to cut a block into stairs/slabs/etc efficiently. Use for 'cut some stone stairs', 'make slabs at the stonecutter'.",
+    parameters: {
+      type: "object",
+      properties: {
+        item: { type: "string", description: "what to cut into, e.g. stone_stairs, stone_slab" },
+        count: { type: "integer", description: "how many. omit for one" },
+      },
+      required: ["item"],
+    },
+  },
+  {
+    name: "use_anvil",
+    description: "Combine, repair, or rename an item at an anvil. Use for 'rename my sword', 'repair my pickaxe', 'combine these'.",
+    parameters: {
+      type: "object",
+      properties: {
+        first: { type: "string", description: "the main item" },
+        second: { type: "string", description: "the item to combine with or material to repair with" },
+        name: { type: "string", description: "new name to give it" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "enchant",
+    description: "Enchant a tool, weapon, or armor at an enchanting table (needs xp levels and lapis). Use for 'enchant my sword', 'enchant this pickaxe'.",
+    parameters: {
+      type: "object",
+      properties: {
+        item: { type: "string", description: "what to enchant. omit for what you're holding" },
+        level: { type: "integer", description: "preferred enchant slot/level, 1-3" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "brew",
+    description: "Set up a brew at a brewing stand with an ingredient and water bottles. Use for 'brew a healing potion', 'brew with nether wart'.",
+    parameters: {
+      type: "object",
+      properties: { ingredient: { type: "string", description: "the brewing ingredient, e.g. nether_wart, blaze_powder" } },
+      required: [],
+    },
+  },
 ];
 
 export function toolNames() {
@@ -847,6 +957,32 @@ export async function executeTool(name, input) {
         return crafting.canCraft(a.item);
       case "what_can_i_craft":
         return crafting.whatCanICraft();
+      case "craft_best":
+        if (!a.item) return { ok: false, reason: "make what?" };
+        return await crafting.craftBest(a.item, Number.isFinite(a.count) ? a.count : null);
+      case "craft_until":
+        if (!a.item) return { ok: false, reason: "have what?" };
+        return await crafting.craftUntil(a.item, Number.isFinite(a.count) ? a.count : 1);
+      case "craft_set":
+        if (!a.set) return { ok: false, reason: "which set?" };
+        return await crafting.craftSet(a.set);
+      case "craft_from_chest":
+        if (!a.item) return { ok: false, reason: "make what?" };
+        return await crafting.craftFromChest(a.item, Number.isFinite(a.count) ? a.count : null, a.container || null);
+      case "recipe_info":
+        if (!a.item) return { ok: false, reason: "recipe for what?" };
+        return crafting.recipeInfo(a.item);
+      case "smith_upgrade":
+        return await crafting.smith(a.item || null);
+      case "stonecut":
+        if (!a.item) return { ok: false, reason: "cut what?" };
+        return await crafting.cut(a.item, Number.isFinite(a.count) ? a.count : null);
+      case "use_anvil":
+        return await crafting.anvil({ first: a.first || null, second: a.second || null, name: a.name || null });
+      case "enchant":
+        return await crafting.enchant(a.item || null, Number.isFinite(a.level) ? a.level : null);
+      case "brew":
+        return await crafting.brew(a.ingredient || null);
       default:
         return { ok: false, reason: `unknown tool ${name}` };
     }

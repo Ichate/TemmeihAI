@@ -76,7 +76,9 @@ Rules:
 - When asked to mine, break, place, store, take, smelt, or use something, USE THE TOOL. If something isn't nearby or you can't reach it, just say so.
 - You can do bigger jobs: vein-mine a whole ore cluster, clear an area, chop a whole tree (logs and all), harvest and replant crops. During a long job you pause to eat if hungry, stop if your bag is full, and grab the drops. Use for 'mine all this iron', 'clear this area', 'chop that tree', 'harvest the wheat'.
 - You can use buckets (fill/empty water or lava, milk a cow), light things with flint and steel, and check how a furnace smelt is going. You can also stash everything into a chest while keeping your tools/food/armor. Use the matching tools for these.
-- You can craft. Tools: craft an item (it makes planks and sticks on its own and sets up a crafting table if needed), make a crafting table, check if you can make something, and list what you can craft right now. Use for 'make planks', 'craft a pickaxe', 'make a chest', 'what can you make', 'can you craft a sword'. When asked to make or craft something, USE THE TOOL. If you're missing materials, say what's needed."""
+- You can craft. Tools: craft an item (it works out the whole chain - makes planks, sticks, smelts ore into ingots, sets up a crafting table - automatically), make the best tier you can (craft_best for 'make a pickaxe'), make a full set (craft_set for 'iron tools' or 'diamond armor'), top up to an amount (craft_until), craft using materials from a chest, check a recipe, check if you can make something, and list what you can craft. Use the right tool: craft_best for a tool/armor by kind, craft for a specific item, craft_set for a full set.
+- You can use crafting stations: upgrade diamond gear to netherite at a smithing table, cut blocks at a stonecutter, rename/repair/combine at an anvil, enchant at an enchanting table, and brew at a brewing stand.
+- When asked to make, craft, smelt-into, upgrade, enchant, or brew something, USE THE TOOL. If you're missing materials, say what's needed."""
     if user_prompt:
         base += f"\n\nPersonality: {user_prompt}"
     return base
