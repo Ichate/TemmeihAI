@@ -4,6 +4,7 @@ import { movement } from "./movement/index.js";
 import { inventory } from "./inventory/index.js";
 import { combat } from "./combat/index.js";
 import { world } from "./world/index.js";
+import { crafting } from "./crafting/index.js";
 
 export const TOOL_DEFS = [
   {
@@ -587,6 +588,37 @@ export const TOOL_DEFS = [
       required: [],
     },
   },
+  {
+    name: "craft",
+    description: "Craft/make an item. Handles making planks and sticks automatically, and sets up a crafting table if the recipe needs one. Use for 'make planks', 'craft a pickaxe', 'make a chest', 'craft 10 sticks', 'make a sword'.",
+    parameters: {
+      type: "object",
+      properties: {
+        item: { type: "string", description: "what to make, e.g. oak_planks, stick, wooden_pickaxe, chest, furnace" },
+        count: { type: "integer", description: "how many. omit for one" },
+      },
+      required: ["item"],
+    },
+  },
+  {
+    name: "make_table",
+    description: "Get a crafting table set up, finding one nearby or making and placing one. Use for 'make a crafting table', 'set up a table'.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "can_craft",
+    description: "Check whether you're able to make a specific item with what you have. Use for 'can you make a pickaxe', 'can you craft a chest'.",
+    parameters: {
+      type: "object",
+      properties: { item: { type: "string", description: "the item to check" } },
+      required: ["item"],
+    },
+  },
+  {
+    name: "what_can_i_craft",
+    description: "List what you're able to make right now with your current materials. Use for 'what can you make', 'what can you craft'.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
 ];
 
 export function toolNames() {
@@ -805,6 +837,16 @@ export async function executeTool(name, input) {
         return await world.smeltStatus();
       case "stash_keeping":
         return await world.depositAllExcept(Array.isArray(a.keep) ? a.keep : null, null);
+      case "craft":
+        if (!a.item) return { ok: false, reason: "make what?" };
+        return await crafting.craft(a.item, Number.isFinite(a.count) ? a.count : null);
+      case "make_table":
+        return await crafting.makeTable();
+      case "can_craft":
+        if (!a.item) return { ok: false, reason: "make what?" };
+        return crafting.canCraft(a.item);
+      case "what_can_i_craft":
+        return crafting.whatCanICraft();
       default:
         return { ok: false, reason: `unknown tool ${name}` };
     }
