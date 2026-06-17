@@ -6,88 +6,99 @@ ai bots that actually play minecraft with you.
 
 ## what it does
 
-invite a bot to your server, it joins and just lives there. walks around on its own, talks to people in chat, reacts to stuff happening around it. eats when it's hungry, panics when it's at 2 hearts, comments when it rains, greets new players. tell it to come over or follow you and it actually walks to you, tell it to kill a mob or guard you and it fights, tell it to mine the ore or chop the tree or stash the loot and it does. you pick the provider (anthropic / openai / openrouter / gemini) and watch the token usage and cost tick up live on the dashboard.
+invite a bot to your server, it joins and just lives there. walks around on its own, talks to people in chat, reacts to stuff happening around it. eats when it's hungry, panics when it's at 2 hearts, comments when on world updates. tell it to come over or follow you and it actually walks to you, tell it to kill a mob or guard you and it fights, tell it to mine the ore or chop the tree or stash the loot and it does, tell it to make a pickaxe and it works out the whole chain. it fishes, sleeps, trades, and flies after you on an elytra. you pick the provider (anthropic / openai / openrouter / gemini) and watch the token usage and cost tick up live on the dashboard.
 
 ## features
 
 **chat**
-- multi-provider with live key check and real model list
+- multi-provider
 - custom personality prompt
 - 40-message in-memory history, wiped on disconnect
 - message batching, multiple players talking at once get one combined reply
-- chat sanitization, strips server `/commands` and junk
-- prompt-injection guard, catches "ignore your instructions" type stuff
+- chat sanitization
+- prompt-injection guard
 
 **movement**
 - wanders its local area on its own when nothing else is going on
 - comes to you, follows you, tails you from a distance, leads you somewhere, walks to coordinates, stops, waits at a spot, runs from danger
-- remembers spots you name ("this is home" then later "go home"), runs a route of several spots in order, patrols back and forth between spots until told to stop
+- remembers spots you name, runs a route of several spots in order, patrols back and forth between spots until told to stop
 - goes back to where it was before a detour
 - climbs to higher ground, finds a safe way down, tries to reach a player up on a ledge
 - heads for a torch or lantern when it's dark, walks in or out through a door, comes to whoever's lowest on health
 - gestures: waves, nods, shakes its head, bows, turns around, looks behind it, jumps around to celebrate
-- jumps, crouches, changes speed between sneak / walk / sprint
-- it picks all of this itself through the model's tool calls, so it acts because it decided to, not because a keyword matched
-- runs on pathfinder for the actual walking: parkour, jumping gaps, opening doors, avoiding lava and other hazards
-- swims properly instead of sinking, stays at the surface in water and comes up for air instead of drowning on the bottom
+- jumps, crouches, changes speed
+- parkour, jumping gaps, opening doors, avoiding lava and other hazards
+- swims properly
 - gets in and out of boats, minecarts, and rides animals like horses and pigs
-- arrival is only reported when it physically gets there, and it tells you honestly if it can't find a path or gets stuck
-- one thing at a time, with an order to it: surviving comes before your commands, your commands come before its own wandering
 
 **items**
 - tells you what it's carrying, or how much of one thing it has
-- holds what you ask for and picks the best one it owns (asking for a sword with a stone and a diamond one gets you the diamond), same for tools and armor
+- holds what you ask for and picks the best one it owns , same for tools and armor
 - puts on its best armor, puts things away
 - drops what it's holding, a named item, or an exact count, or empties the whole bag
-- gives you items by walking over and handing them across, gives what it has if you ask for more
-- picks dropped items up off the ground, and if its bag is full it'll dump something low-value to grab something better (but won't throw away something worth more than what it's grabbing)
+- gives you items by walking over and handing them across
+- picks dropped items up off the ground, and if its bag is full it'll dump something low-value to grab something better
 - eats food, drinks potions, holds a totem
-- merges loose stacks of the same thing together
-- knows real items from how you talk, "wood" finds logs and planks, "sword" finds the diamond sword
+- merges loose stacks
+- knows real items from how you talk
 
 **combat**
-- fights mobs on command ("kill that zombie") or hunts a creature down ("go kill a cow")
+- fights mobs on command
 - fights back on its own when something attacks it, and spots nearby hostiles on sight instead of waiting to get hit
 - matches the server version: on old versions (under 1.9) it spam-clicks, on newer ones it waits out the attack cooldown so every hit lands, and jumps for crits
 - sprints to close in, strafes while swinging, gives up a chase that's going nowhere
-- uses a bow if it has one: aims ahead of moving targets, keeps its distance, backs up while shooting when something rushes it
+- uses a bow if it has one
 - backs off from creepers until the moment's right instead of blowing up next to one
 - won't chase a target into lava or off a cliff
-- handles a crowd: goes for whatever's hurting it most, finishes off the weakest first, switches to a creeper if one shows up
-- looks after itself mid-fight: eats, drinks a potion, pops a totem, and runs when it's about to die, then comes back once it's patched up
-- pvp only when a player actually asks for it ("fight me", "pvp steve"), never random players. if it dies or the other player dies the duel's over, two people can both pick a fight, and it keeps chatting while it swings
-- protects a player (stays near them and kills what comes at them) or guards a spot
-- fight alongside it as an ally and it won't hit you, and stays near you in a group scrap
+- goes for whatever's hurting it most, finishes off the weakest first, switches to a creeper if one shows up
+- eats, drinks a potion, pops a totem, and runs when it's about to die, then comes back once it's patched up
+- pvp only when a player actually asks for it. if it dies or the other player dies the duel's over, two people can both pick a fight, and it keeps chatting while it swings
+- protects a player or guards a spot
+- fight alongside it as an ally and it won't hit you, and stays near you in a group
 - throws out short lines mid-fight, taunts before a duel, calls out a victory
 
 **working the world**
-- mines and breaks blocks, walking over and grabbing the drops, picking the right tool for what it's breaking (pickaxe for stone, axe for wood, shovel for dirt)
-- mines a whole connected vein at once ("mine all this iron"), or clears out an area
-- chops a whole tree, the entire trunk, pillaring up to reach the top of tall ones
-- digs down safely, won't dig into lava or off a drop, won't break bedrock
-- places blocks, against a real surface
+- mines and breaks blocks
+- mines a whole connected vein at once 
+- chops a whole tree
+- digs down safely
+- places blocks
 - harvests ripe crops and replants them
 - puts items in chests and takes them out, by name and count, checks what's inside, and can dump everything but keep its tools and food
-- smelts in furnaces, loading fuel on its own, and tells you how far along it is
+- smelts in furnaces
 - fills and empties buckets, milks cows, lights things with flint and steel
 - presses buttons, pulls levers, opens doors and gates
-- on a long job it stops to eat if it gets hungry, stops when its bag is full instead of wasting drops, and fights back if something jumps it then carries on
+
+**crafting**
+- makes things from what it's carrying, working out the whole chain itself
+- sets up a crafting table when a recipe needs one
+- smelts ore into ingots as part of a craft
+- makes the best version it can
+- makes full sets if asked
+- tells you what a recipe needs without making it, and what it can make right now
+- uses the other stations too, smithing table for netherite, stonecutter, anvil for repair/rename, enchanting, brewing
+
+**other stuff**
+- fishes, casting and reeling on its own until you tell it to stop
+- sleeps in a bed at night, and gets up when you want
+- trades with villagers, reads out what they offer or trades for something you want
+- follows you through the air on an elytra, but only if you've got one and you're actually gliding too, comes back down when you land
 
 **world awareness**
 the bot gets a `[current game state: ...]` line every turn with health, hunger, position, dimension, biome, time of day, weather, held item, inventory, nearby players + mobs, xp level. light version for idle chatter, full version for real conversations and combat.
 
 **survival**
-- auto-eats when hunger drops, knows ~40 food items, swaps back to whatever it was holding
+- auto-eats when hunger drops
 - runs from danger when it's low and something hostile is close
-- knows what's hurting it, a mob, a player, a fall, drowning, lava, fire, or a cactus, instead of just saying "something hit me"
+- knows what's hurting it
 
 **reacts to stuff (each with its own cooldown so it doesn't spam)**
 - arrival line on first spawn
 - player joined / left
-- low health, took damage (says what hit it), death
+- low health, took damage , death
 - xp level up
 - nightfall / daybreak
-- rain start/stop, thunderstorm
+- weather change
 - biome change
 - item pickup
 - watching another player attack something nearby
@@ -98,20 +109,16 @@ the bot gets a `[current game state: ...]` line every turn with health, hunger, 
 - auto-reconnect on kick/disconnect/error, 5 tries 5s apart
 - session timer is wall-clock so reconnecting doesn't reset it
 - clean shutdown, clears everything and wipes memory on exit
-- 60s timeout on llm calls, retries once on a hiccup
+- 60s timeout on llm calls, retries once on error
 
 **dashboard**
 - adjustable session length, 5 to 30 min
-- optional cost cap, auto-stops if it spends too much
+- optional cost cap
 - live countdown, warns under a minute
 - provider/model + live token + cost meter with projection
-- countdown when you hit the spawn cooldown
-- scrollable model list with keyboard nav
 
 **security**
 - 1 bot per ip, 1 spawn per 5 min, rate limited
-- server gets pinged before spawn so you get a clear error instead of a hang
-- full input validation
 
 ## setup
 
@@ -137,7 +144,7 @@ open http://localhost:3000
 4. pick model, optional personality, session length, optional cost cap
 5. bot joins and starts doing its thing
 
-then just talk to it in chat. try "come here", "follow me", "go to 100 64 -200", "stop", "this is home", "go home", "wait here", "climb up", "wave", "patrol between home and the gate", "hold a sword", "give me 10 wood", "what do you have", "drop everything", "eat something", "kill that zombie", "protect me", "guard this spot", "fight me", "mine that", "mine all this iron", "chop that tree", "put your wood in the chest", "what's in the chest", "smelt the iron", "harvest the wheat".
+then just talk to it in chat.
 
 ## project layout
 
@@ -176,7 +183,8 @@ main/
         wander.js              roams on its own
         combat-move.js         dodge, keep distance, retreat
         social.js              personal space, mirror a player
-        swim.js                stays afloat, surfaces for air
+        swim.js                stays afloat, surfaces for air, dives on command
+        elytra.js              follows a flying player in the air
         riding.js              boats, minecarts, animals
         poi.js                 finds interesting nearby spots to wander to
         watchdog.js            lost-target / flee timeout / guard return
@@ -226,14 +234,30 @@ main/
         ignite.js              flint and steel
         use.js                 buttons, levers, doors
         index.js               public api
+      crafting/                making things
+        config.js              tiers, smeltables, station names
+        recipes.js             recipe lookup, can-make checks
+        tree.js                works out the full craft chain
+        smelt-step.js          smelt ore into ingots mid-craft
+        tiers.js               pick the best tier you can make
+        table.js               set up and reclaim a crafting table
+        chest-source.js        pull materials from a chest
+        stations.js            smithing, stonecutter, anvil, enchant, brew
+        craft.js               the craft loop
+        index.js               public api
+      activities/              the rest
+        config.js              fishing/sleep/trade tuning
+        fishing.js             cast and reel
+        sleep.js               find a bed and sleep
+        trade.js               villager trading
+        index.js               public api
 ```
 
 ## coming soon
 
-- crafting tools and items (in works)
-- gathering loops, "go get me 20 wood"
+- redstone
 - building, walls and shelters
-- live chat feed on the dashboard
+- gathering
 
 ## license
 
