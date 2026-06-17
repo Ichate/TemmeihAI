@@ -253,6 +253,15 @@ export const TOOL_DEFS = [
     parameters: { type: "object", properties: {}, required: [] },
   },
   {
+    name: "dive",
+    description: "Dive down underwater while in water, instead of floating at the surface. Use for 'dive', 'go underwater', 'go down', 'swim down'. You'll come back up on your own when air runs low.",
+    parameters: {
+      type: "object",
+      properties: { seconds: { type: "integer", description: "how long to stay down, omit for a few seconds" } },
+      required: [],
+    },
+  },
+  {
     name: "hold_item",
     description: "Equip/hold an item in your hand. Picks the best one you have of that kind. Use for 'hold a sword', 'get your pickaxe out', 'hold the bread'.",
     parameters: {
@@ -831,6 +840,8 @@ export async function executeTool(name, input) {
         return await movement.mountNearest();
       case "dismount":
         return await movement.dismount();
+      case "dive":
+        return await movement.dive(Number.isFinite(a.seconds) ? a.seconds : null);
       case "hold_item": {
         if (!a.item) return { ok: false, reason: "what should i hold?" };
         const w = a.item.toLowerCase();

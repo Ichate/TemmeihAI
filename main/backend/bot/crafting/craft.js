@@ -6,7 +6,7 @@ import {
   resolveItem, itemDisplayName, recipeNeedsTable, recipeAvailable,
   pickRecipe, howManyCanMake, mcData,
 } from "./recipes.js";
-import { ensureTable } from "./table.js";
+import { ensureTable, reclaimSelfTable } from "./table.js";
 import { planCraft } from "./tree.js";
 import { smeltInto } from "./smelt-step.js";
 
@@ -75,54 +75,68 @@ export async function craftItem(word, count, opts = {}) {
   if (!item) return { ok: false, reason: `i don't know how to make ${word}` };
   const name = itemDisplayName(item);
   const want = Number.isFinite(count) && count > 0 ? count : 1;
+  const startCount = countById(item.id);
 
   let needsTable = recipeNeedsTable(item);
   let tableBlock = null;
 
-  if (needsTable) {
-    const t = await ensureTable();
-    if (t.ok) {
-      tableBlock = t.block;
-    } else if (!recipeAvailable(item, false)) {
-      const plan = planCraft(item, want, true);
-      if (!plan.ok) return { ok: false, reason: t.reason };
-    } else {
-      needsTable = false;
+  try {
+    if (needsTable) {
+      const t = await ensureTable();
+      if (t.ok) {
+        tableBlock = t.block;
+      } else if (!recipeAvailable(item, false)) {
+        const plan = planCraft(item, want, true);
+        if (!plan.ok) return { ok: false, reason: t.reason };
+      } else {
+        needsTable = false;
+      }
+    }
+
+    let guard = 0;
+    while (guard < 12) {
+      guard += 1;
+      const have = countById(item.id) - startCount;
+      if (have >= want) break;
+
+      if (recipeAvailable(item, needsTable) && howManyCanMake(item, needsTable) > 0) {
+        const recipe = pickRecipe(item, needsTable);
+        const per = recipe && recipe.result && recipe.result.count ? recipe.result.count : 1;
+        const remaining = want - have;
+        const canDo = Math.min(remaining, howManyCanMake(item, needsTable));
+        const times = Math.max(1, Math.ceil(canDo / per));
+        const made = await craftRecipeRaw(item, times, tableBlock);
+        if (made <= 0) break;
+        continue;
+      }
+
+      const plan = planCraft(item, want - have, needsTable);
+      if (!plan.ok) {
+        if (countById(item.id) - startCount > 0) break;
+        return { ok: false, reason: `i can't make ${name}: ${plan.reason}` };
+      }
+      if (!plan.steps || !plan.steps.length) break;
+
+      const progressed = await runPlan(plan, tableBlock);
+
+      if (needsTable && !tableBlock) {
+        const t2 = await ensureTable();
+        if (t2.ok) tableBlock = t2.block;
+      }
+
+      if (!progressed && !recipeAvailable(item, needsTable)) {
+        if (countById(item.id) - startCount > 0) break;
+        return { ok: false, reason: `i couldn't get all the materials for ${name}` };
+      }
+    }
+
+    const total = countById(item.id) - startCount;
+    if (total <= 0) return { ok: false, reason: `i don't have the materials to make ${name}` };
+    const short = total < want ? ` (could only make ${total})` : "";
+    return { ok: true, reason: `crafted ${total}x ${name}${short}` };
+  } finally {
+    if (!opts.keepTable) {
+      try { await reclaimSelfTable(); } catch {}
     }
   }
-
-  if (!recipeAvailable(item, needsTable) || howManyCanMake(item, needsTable) < want) {
-    const plan = planCraft(item, want, needsTable);
-    if (!plan.ok) {
-      return { ok: false, reason: `i can't make ${name}: ${plan.reason}` };
-    }
-    const ran = await runPlan(plan, tableBlock);
-    if (!ran && !recipeAvailable(item, needsTable)) {
-      return { ok: false, reason: `i couldn't get all the materials for ${name}` };
-    }
-    if (needsTable && !tableBlock) {
-      const t2 = await ensureTable();
-      if (t2.ok) tableBlock = t2.block;
-    }
-  }
-
-  const recipe = pickRecipe(item, needsTable);
-  if (!recipe) return { ok: false, reason: `i don't have the materials to make ${name}` };
-
-  const per = recipe.result && recipe.result.count ? recipe.result.count : 1;
-  const maxMakeable = howManyCanMake(item, needsTable);
-  if (maxMakeable <= 0) return { ok: false, reason: `i don't have the materials to make ${name}` };
-
-  const targetUnits = Math.min(want, maxMakeable);
-  const times = Math.max(1, Math.ceil(targetUnits / per));
-
-  const before = countById(item.id);
-  const made = await craftRecipeRaw(item, times, tableBlock);
-
-  if (made <= 0 && countById(item.id) <= before) {
-    return { ok: false, reason: `tried to craft ${name} but nothing came out` };
-  }
-  const total = countById(item.id) - before;
-  const short = total < want ? ` (could only make ${total})` : "";
-  return { ok: true, reason: `crafted ${total}x ${name}${short}` };
 }

@@ -15,9 +15,32 @@ import { attachDropTracker, consumeDropAttribution } from "./drops.js";
 import { handleDisconnect } from "./session.js";
 import { initMovement, resetMovementForRespawn, movement, MODE } from "./movement/index.js";
 import { combat } from "./combat/index.js";
+import { inventory } from "./inventory/index.js";
 
 let movementReady = false;
 let combatReady = false;
+let surviving = false;
+
+async function autoSurvive(bot) {
+  if (surviving || !bot || !bot.entity) return;
+  surviving = true;
+  try {
+    if (bot.health != null && bot.health <= 6) {
+      try { await inventory.holdTotem(); } catch {}
+    }
+    const hasGap = bot.inventory && bot.inventory.items().some(it => /golden_apple/.test(it.name));
+    const hasPot = bot.inventory && bot.inventory.items().some(it => /potion/.test(it.name));
+    if (hasGap) { try { await inventory.useNamed("golden_apple"); } catch {} }
+    else if (hasPot) { try { await inventory.useNamed("potion"); } catch {} }
+    else { try { await inventory.eatBestFood(); } catch {} }
+
+    if (movementReady && isHostileNearby(bot)) {
+      movement.fleeFrom(null, { label: "low health" }).catch(() => {});
+    }
+  } finally {
+    surviving = false;
+  }
+}
 
 function findAttackerOf(bot, victim) {
   if (!bot || !bot.entities || !victim || !victim.position) return null;
@@ -194,10 +217,10 @@ export function attachHandlers(bot) {
     if (bot.health > 0 && bot.health <= LOW_HEALTH_THRESHOLD) {
       if (!state.lowHealthAnnounced) {
         state.lowHealthAnnounced = true;
-        if (movementReady && isHostileNearby(bot)) {
-          movement.fleeFrom(null, { label: "low health" }).catch(() => {});
-        }
+        autoSurvive(bot);
         proactiveSpeak("lowHealth", `Your health just dropped to ${Math.round(bot.health)} (out of 20). React like a panicked player, one short line.`, true);
+      } else {
+        autoSurvive(bot);
       }
     } else if (bot.health > LOW_HEALTH_THRESHOLD) {
       state.lowHealthAnnounced = false;

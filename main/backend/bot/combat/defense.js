@@ -68,22 +68,27 @@ export async function tryHealOrEat() {
     const hasGap = bot && bot.inventory && bot.inventory.items().some(it => /golden_apple/.test(it.name));
     if (hasGap) {
       const r = await inventory.useNamed("golden_apple");
-      if (r && r.ok) return true;
+      if (r && r.ok) { await reequipWeapon(); return true; }
     }
     const pot = bot && bot.inventory && bot.inventory.items().some(it => /potion/.test(it.name));
     if (pot) {
       const r = await inventory.useNamed("potion");
-      if (r && r.ok) return true;
+      if (r && r.ok) { await reequipWeapon(); return true; }
     }
   }
 
   if (shouldEat() && !state.eating) {
     lastHealAttempt = now;
     const r = await inventory.eatBestFood();
-    return !!(r && r.ok);
+    if (r && r.ok) { await reequipWeapon(); return true; }
+    return false;
   }
 
   return false;
+}
+
+async function reequipWeapon() {
+  try { await inventory.equipBestWeapon(); } catch {}
 }
 
 export async function fleeFromTarget(target) {

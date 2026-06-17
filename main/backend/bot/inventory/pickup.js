@@ -14,6 +14,15 @@ function droppedItemName(entity) {
   } catch {}
   const n = (entity.name || "").toLowerCase();
   if (n === "item" || n === "item_stack") return "item";
+  if (entity.type === "object" || entity.type === "other") {
+    const dn = (entity.objectType || entity.displayName || "").toLowerCase();
+    if (dn === "item" || dn === "item stack" || dn === "item_stack") return "item";
+  }
+  if (entity.entityType != null && entity.metadata) {
+    for (const m of entity.metadata) {
+      if (m && typeof m === "object" && m.itemCount != null) return "item";
+    }
+  }
   return null;
 }
 

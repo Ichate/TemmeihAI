@@ -5,6 +5,8 @@ import { CRAFTING_TABLE, TABLE_REACH, TABLE_SCAN_RADIUS } from "./config.js";
 import { resolveItem, pickRecipe } from "./recipes.js";
 import { findItems } from "../inventory/read.js";
 
+let selfPlaced = null;
+
 export function findTable() {
   const bot = getBot();
   if (!bot || !bot.entity || !bot.findBlock) return null;
@@ -17,6 +19,20 @@ export function findTable() {
   } catch {
     return null;
   }
+}
+
+export async function reclaimSelfTable() {
+  const bot = getBot();
+  if (!bot || !selfPlaced) return;
+  const pos = selfPlaced;
+  selfPlaced = null;
+  try {
+    const block = bot.blockAt(pos);
+    if (block && block.name === CRAFTING_TABLE) {
+      const { world } = await import("../world/index.js");
+      await world.mineBlock(block);
+    }
+  } catch {}
 }
 
 export function haveTableItem() {
@@ -86,5 +102,6 @@ export async function ensureTable() {
   if (!fresh) return { ok: false, reason: "placed a table but lost track of it", block: null };
   const reached = await reachTable(fresh);
   if (!reached) return { ok: false, reason: "couldn't get to the table i placed", block: null };
-  return { ok: true, reason: "made and placed a table", block: fresh };
+  selfPlaced = fresh.position;
+  return { ok: true, reason: "made and placed a table", block: fresh, placed: true };
 }
