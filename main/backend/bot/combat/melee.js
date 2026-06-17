@@ -55,6 +55,21 @@ async function critJump() {
   } catch {}
 }
 
+function holdingMace() {
+  const bot = getBot();
+  try { return !!(bot && bot.heldItem && /mace/.test(bot.heldItem.name)); } catch { return false; }
+}
+
+async function maceSmash() {
+  const bot = getBot();
+  if (!bot) return;
+  lastCritJump = Date.now();
+  try {
+    bot.setControlState("jump", true);
+    setTimeout(() => { try { bot.setControlState("jump", false); } catch {} }, 220);
+  } catch {}
+}
+
 export async function swingAt(target) {
   const bot = getBot();
   if (!bot || !target) return false;
@@ -63,7 +78,12 @@ export async function swingAt(target) {
 
   await faceTarget(target);
 
-  if (!isSpamStyle() && wantsCrit() && bot.entity.onGround) {
+  const mace = holdingMace();
+  if (mace && bot.entity.onGround && Date.now() - lastCritJump >= CRIT_JUMP_GAP_MS) {
+    await maceSmash();
+    await new Promise(r => setTimeout(r, 260));
+    await faceTarget(target);
+  } else if (!isSpamStyle() && wantsCrit() && bot.entity.onGround) {
     await critJump();
     await new Promise(r => setTimeout(r, 90));
   }

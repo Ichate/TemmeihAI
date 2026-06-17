@@ -25,11 +25,12 @@ export async function equipNamed(word) {
 export async function equipBestWeapon() {
   const bot = getBot();
   if (!bot) return { ok: false, reason: "not in game" };
+  const maces = allItems().filter(it => /mace/.test(it.name));
   const swords = allItems().filter(it => /_sword$/.test(it.name));
   const axes = allItems().filter(it => /_axe$/.test(it.name));
-  const pool = swords.length ? swords : axes;
+  const pool = maces.length ? maces : (swords.length ? swords : axes);
   if (!pool.length) return { ok: false, reason: "no weapon to hold" };
-  const best = bestByTier(pool);
+  const best = maces.length ? maces[0] : bestByTier(pool);
   try {
     await bot.equip(best, "hand");
     return { ok: true, reason: `holding ${best.name.replace(/_/g, " ")}` };

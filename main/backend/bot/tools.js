@@ -5,6 +5,7 @@ import { inventory } from "./inventory/index.js";
 import { combat } from "./combat/index.js";
 import { world } from "./world/index.js";
 import { crafting } from "./crafting/index.js";
+import { activities } from "./activities/index.js";
 
 export const TOOL_DEFS = [
   {
@@ -738,6 +739,56 @@ export const TOOL_DEFS = [
       required: [],
     },
   },
+  {
+    name: "fish",
+    description: "Fish in nearby water with a fishing rod, casting and reeling on its own. Use for 'go fishing', 'catch some fish', 'fish for me'.",
+    parameters: {
+      type: "object",
+      properties: { times: { type: "integer", description: "how many catches before stopping. omit to fish until told to stop" } },
+      required: [],
+    },
+  },
+  {
+    name: "stop_fishing",
+    description: "Stop fishing. Use for 'stop fishing', 'reel in'.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "sleep",
+    description: "Go to a nearby bed and sleep (works at night or during a thunderstorm). Use for 'go to sleep', 'go to bed', 'sleep through the night'.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "wake_up",
+    description: "Get out of bed. Use for 'wake up', 'get up'.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "list_trades",
+    description: "Walk to a nearby villager and read out what trades they offer. Use for 'what does the villager trade', 'check the trades'.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "trade",
+    description: "Trade with a nearby villager for an item you want. Use for 'trade for emeralds', 'buy a pickaxe from the villager', 'trade with them'.",
+    parameters: {
+      type: "object",
+      properties: {
+        want: { type: "string", description: "the item you want from the trade. omit for their first trade" },
+        count: { type: "integer", description: "how many times to trade. omit for one" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "elytra_follow",
+    description: "Take off and follow a player in elytra flight. Only works if you have an elytra AND that player is currently gliding/flying too. Use for 'fly with me', 'follow me in the air', 'elytra follow me'.",
+    parameters: {
+      type: "object",
+      properties: { player: { type: "string", description: "the flying player to follow. omit for whoever asked" } },
+      required: [],
+    },
+  },
 ];
 
 export function toolNames() {
@@ -994,6 +1045,20 @@ export async function executeTool(name, input) {
         return await crafting.enchant(a.item || null, Number.isFinite(a.level) ? a.level : null);
       case "brew":
         return await crafting.brew(a.ingredient || null);
+      case "fish":
+        return await activities.startFishing(Number.isFinite(a.times) ? a.times : null);
+      case "stop_fishing":
+        return activities.stopFishing();
+      case "sleep":
+        return await activities.goSleep();
+      case "wake_up":
+        return await activities.wakeUp();
+      case "list_trades":
+        return await activities.listTrades();
+      case "trade":
+        return await activities.doTrade(a.want || null, Number.isFinite(a.count) ? a.count : null);
+      case "elytra_follow":
+        return await movement.elytraFollow(a.player || null);
       default:
         return { ok: false, reason: `unknown tool ${name}` };
     }

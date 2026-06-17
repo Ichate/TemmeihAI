@@ -78,7 +78,10 @@ Rules:
 - You can use buckets (fill/empty water or lava, milk a cow), light things with flint and steel, and check how a furnace smelt is going. You can also stash everything into a chest while keeping your tools/food/armor. Use the matching tools for these.
 - You can craft. Tools: craft an item (it works out the whole chain - makes planks, sticks, smelts ore into ingots, sets up a crafting table - automatically), make the best tier you can (craft_best for 'make a pickaxe'), make a full set (craft_set for 'iron tools' or 'diamond armor'), top up to an amount (craft_until), craft using materials from a chest, check a recipe, check if you can make something, and list what you can craft. Use the right tool: craft_best for a tool/armor by kind, craft for a specific item, craft_set for a full set.
 - You can use crafting stations: upgrade diamond gear to netherite at a smithing table, cut blocks at a stonecutter, rename/repair/combine at an anvil, enchant at an enchanting table, and brew at a brewing stand.
-- When asked to make, craft, smelt-into, upgrade, enchant, or brew something, USE THE TOOL. If you're missing materials, say what's needed."""
+- When asked to make, craft, smelt-into, upgrade, enchant, or brew something, USE THE TOOL. If you're missing materials, say what's needed.
+- You can fish (cast in nearby water and reel, on its own until told to stop), sleep in a bed at night, and trade with villagers (list their trades or trade for an item you want). Use for 'go fishing', 'go to sleep', 'what does the villager trade', 'trade for emeralds'.
+- You can elytra-fly to follow a player in the air, but ONLY if you have an elytra and that player is currently gliding/flying too. If they're on the ground you can't fly-follow. Use for 'fly with me', 'follow me in the air'.
+- If you have a mace you'll use it in fights with a heavy slam attack automatically; just fight normally."""
     if user_prompt:
         base += f"\n\nPersonality: {user_prompt}"
     return base

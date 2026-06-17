@@ -20,6 +20,7 @@ import {
 import { turnAround, lookBehind, wave, nod, shakeHead, bow, celebrate } from "./gestures.js";
 import { mountNearest, dismount, isRiding, findNearestVehicle } from "./riding.js";
 import { startSwimWatcher, stopSwimWatcher, isSwimming, dive, stopDive } from "./swim.js";
+import { startElytraFollow, stopElytraFollow, isElytraFollowing } from "./elytra.js";
 import { MODE, SPEED } from "./config.js";
 
 let speakHook = null;
@@ -143,6 +144,9 @@ export const movement = {
   isSwimming,
   dive,
   stopDive,
+  elytraFollow: startElytraFollow,
+  stopElytraFollow,
+  isElytraFollowing,
   status: describeStatus,
   context: describeForContext,
   currentMode,
