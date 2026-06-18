@@ -57,5 +57,6 @@ coverage/
 .parcel-cache/
 
 main/backend/bots.json
+main/backend/keys.json
 main/backend/history_*.json
 main/llm/

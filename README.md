@@ -136,6 +136,31 @@ python main.py
 
 open http://localhost:3000
 
+## local vs production
+
+there are two ways to run it, set by the `APP_MODE` env var.
+
+**local** (the default, for running on your own machine)
+- no timers cap, no spawn cooldown, no ip limits, it's your box, do what you want
+- run several bots at once
+- sessions can go much longer (up to a day)
+- an "api keys" page on the home menu: save your keys once (they get verified, then stored in `keys.json` on your machine), and just pick a saved key when you spawn a bot instead of pasting it every time
+
+```bash
+python main.py
+```
+
+**production** (for hosting it publicly for lots of people)
+- run it with `APP_MODE=production`
+- no accounts, no signup. each browser quietly gets a random id the first time it visits, and that's how users are told apart, so two people on the same wifi don't step on each other
+- everyone only sees their own bots on the dashboard, and their own history
+- the limits stay on (spawn cooldown, session cap, cost cap), counted per person
+- no key storage, keys are used for the spawn and never saved to disk
+
+```bash
+APP_MODE=production python main.py
+```
+
 ## how to use
 
 1. open the dashboard, click create bot

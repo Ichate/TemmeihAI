@@ -13,16 +13,29 @@ from config import (
     MAX_SYSTEM_PROMPT_LEN, MAX_IP_LEN, MAX_BOT_NAME_LEN,
     DEFAULT_SESSION_MINUTES, MAX_SESSION_MINUTES, MIN_SESSION_MINUTES,
     STALE_LOG_TIMEOUT_S, MAX_COST_CAP_USD, MIN_COST_CAP_USD,
+    LIMITS_ENABLED, MAX_BOTS_PER_OWNER, APP_MODE, IS_LOCAL,
     price_for_model,
 )
 import logger
 import db
+import identity
 
 USAGE_RE = re.compile(r"usage input=(\d+) output=(\d+)")
 
 router = APIRouter()
 active_bots = {}
 _spawn_limits = defaultdict(list)
+_bot_seq = 0
+
+
+def _owner_bots(owner):
+    return [b for b in active_bots.values() if b["owner"] == owner]
+
+
+def _next_bot_id():
+    global _bot_seq
+    _bot_seq += 1
+    return f"b{_bot_seq}"
 
 
 class BotConfig(BaseModel):
@@ -38,18 +51,20 @@ class BotConfig(BaseModel):
     costCapUsd: float = 0.0
 
 
-def _spawn_retry_after(ip):
+def _spawn_retry_after(owner):
+    if not LIMITS_ENABLED:
+        return 0
     now = time.time()
-    times = [t for t in _spawn_limits[ip] if now - t < RATE_LIMIT_BOT_WINDOW]
-    _spawn_limits[ip] = times
+    times = [t for t in _spawn_limits[owner] if now - t < RATE_LIMIT_BOT_WINDOW]
+    _spawn_limits[owner] = times
     if len(times) >= RATE_LIMIT_BOT_SPAWN:
         oldest = min(times)
         return int(RATE_LIMIT_BOT_WINDOW - (now - oldest))
     return 0
 
 
-def _record_spawn(ip):
-    _spawn_limits[ip].append(time.time())
+def _record_spawn(owner):
+    _spawn_limits[owner].append(time.time())
 
 
 def build_system(bot_name, user_prompt):
@@ -155,73 +170,114 @@ async def ping_server(host, port):
         return True, f"port open, precheck error ({e}), trying anyway"
 
 
+def _bot_status(b):
+    elapsed = int(time.time() - b["start_time"])
+    total = b["session_seconds"]
+    remaining = max(0, total - elapsed)
+    cost_projected = None
+    if elapsed > 10 and b["cost"] > 0:
+        rate = b["cost"] / elapsed
+        cost_projected = round(rate * total, 4)
+    return {
+        "id": b["id"],
+        "name": b["name"],
+        "target": b["target"],
+        "provider": b["provider"],
+        "model": b["model"],
+        "elapsed": elapsed,
+        "remaining": remaining,
+        "total": total,
+        "tokens_in": b["tokens_in"],
+        "tokens_out": b["tokens_out"],
+        "calls": b["calls"],
+        "cost": round(b["cost"], 4),
+        "cost_projected": cost_projected,
+        "cost_cap": b["cost_cap"] or None,
+    }
+
+
 @router.get("/status")
 async def get_status(request: Request):
     try:
-        ip = request.client.host
-        if ip in active_bots:
-            b = active_bots[ip]
-            elapsed = int(time.time() - b["start_time"])
-            total = b["session_seconds"]
-            remaining = max(0, total - elapsed)
-
-            cost_projected = None
-            if elapsed > 10 and b["cost"] > 0:
-                rate = b["cost"] / elapsed
-                cost_projected = round(rate * total, 4)
-
-            return {
-                "active": True,
-                "name": b["name"],
-                "target": b["target"],
-                "provider": b["provider"],
-                "model": b["model"],
-                "elapsed": elapsed,
-                "remaining": remaining,
-                "total": total,
-                "tokens_in": b["tokens_in"],
-                "tokens_out": b["tokens_out"],
-                "calls": b["calls"],
-                "cost": round(b["cost"], 4),
-                "cost_projected": cost_projected,
-                "cost_cap": b["cost_cap"] or None,
-            }
-        return {"active": False}
+        owner = identity.owner_for(request)
+        mine = _owner_bots(owner)
+        if not mine:
+            return {"active": False, "bots": []}
+        bots = [_bot_status(b) for b in mine]
+        primary = bots[0]
+        return {"active": True, "bots": bots, **primary}
     except Exception as e:
         logger.error(f"status error: {e}")
-        return {"active": False}
+        return {"active": False, "bots": []}
 
 
 @router.post("/stop")
 async def stop_bot(request: Request):
-    ip = request.client.host
-    if ip in active_bots:
-        b = active_bots[ip]
-        b["proc"].terminate()
-        del active_bots[ip]
+    owner = identity.owner_for(request)
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    bot_id = body.get("id") if isinstance(body, dict) else None
+
+    mine = _owner_bots(owner)
+    if not mine:
+        return {"success": False, "error": "no bot running"}
+
+    targets = [b for b in mine if (not bot_id or b["id"] == bot_id)]
+    if not targets:
+        return {"success": False, "error": "no such bot"}
+
+    for b in targets:
+        try:
+            b["proc"].terminate()
+        except Exception:
+            pass
+        active_bots.pop(b["id"], None)
         logger.info(f"{b['name']} stopped by user")
-        return {"success": True}
-    return {"success": False, "error": "no bot running"}
+    return {"success": True, "stopped": len(targets)}
+
+
+@router.get("/mode")
+async def get_mode():
+    return {"mode": APP_MODE, "local": IS_LOCAL, "max_bots": MAX_BOTS_PER_OWNER}
 
 
 @router.get("/history")
-async def get_history():
-    return {"bots": db.recent_bots()}
+async def get_history(request: Request):
+    owner = identity.owner_for(request)
+    if IS_LOCAL:
+        return {"bots": db.recent_bots()}
+    return {"bots": db.recent_bots(owner=owner)}
 
 
 @router.post("/bot")
 async def create_bot(config: BotConfig, request: Request):
-    ip = request.client.host
+    owner = identity.owner_for(request)
+    ip = identity.owner_ip(request)
 
-    if ip in active_bots:
-        return {"success": False, "error": "you already have a bot running"}
+    if len(_owner_bots(owner)) >= MAX_BOTS_PER_OWNER:
+        if MAX_BOTS_PER_OWNER == 1:
+            return {"success": False, "error": "you already have a bot running"}
+        return {"success": False, "error": f"you're at your limit of {MAX_BOTS_PER_OWNER} bots"}
 
-    retry_after = _spawn_retry_after(ip)
+    retry_after = _spawn_retry_after(owner)
     if retry_after > 0:
         return JSONResponse(
             {"success": False, "error": "spawn cooldown active", "retry_after": retry_after},
             status_code=429,
         )
+
+    if config.apiKey.startswith("saved:"):
+        if not IS_LOCAL:
+            return JSONResponse({"success": False, "error": "saved keys are local mode only"}, status_code=400)
+        import keys as keyvault
+        label = config.apiKey[len("saved:"):]
+        real = keyvault.get_key(label)
+        if not real:
+            return JSONResponse({"success": False, "error": "saved key not found"}, status_code=400)
+        config.apiKey = real
 
     error = validate(config)
     if error:
@@ -252,9 +308,12 @@ async def create_bot(config: BotConfig, request: Request):
         )
 
         in_price, out_price = price_for_model(config.model)
-        _record_spawn(ip)
+        _record_spawn(owner)
         now = time.time()
-        active_bots[ip] = {
+        bot_id = _next_bot_id()
+        active_bots[bot_id] = {
+            "id": bot_id,
+            "owner": owner,
             "proc": proc,
             "name": config.botName,
             "target": f"{config.ip}:{config.port}",
@@ -276,6 +335,7 @@ async def create_bot(config: BotConfig, request: Request):
             "name": config.botName, "target": f"{config.ip}:{config.port}",
             "version": config.version, "provider": config.provider,
             "model": config.model, "session_minutes": config.sessionMinutes,
+            "owner": owner,
             "time": datetime.now().isoformat()
         })
 
@@ -289,12 +349,12 @@ async def create_bot(config: BotConfig, request: Request):
                     line = line.strip()
                     if not line:
                         continue
-                    if ip in active_bots:
-                        active_bots[ip]["last_log_time"] = time.time()
+                    if bot_id in active_bots:
+                        active_bots[bot_id]["last_log_time"] = time.time()
                     try:
                         m = USAGE_RE.search(line)
-                        if m and ip in active_bots:
-                            b = active_bots[ip]
+                        if m and bot_id in active_bots:
+                            b = active_bots[bot_id]
                             ti, to = int(m.group(1)), int(m.group(2))
                             b["tokens_in"] += ti
                             b["tokens_out"] += to
@@ -312,8 +372,8 @@ async def create_bot(config: BotConfig, request: Request):
                     else:
                         logger.info(f"{config.botName}: {line}")
                 except asyncio.TimeoutError:
-                    if ip in active_bots:
-                        b = active_bots[ip]
+                    if bot_id in active_bots:
+                        b = active_bots[bot_id]
                         if time.time() - b["last_log_time"] > STALE_LOG_TIMEOUT_S:
                             logger.warn(f"{b['name']} stale (no output for {STALE_LOG_TIMEOUT_S}s), killing")
                             try: b["proc"].kill()
@@ -322,8 +382,8 @@ async def create_bot(config: BotConfig, request: Request):
                 except Exception as e:
                     logger.error(f"monitor loop error: {e}")
                     await asyncio.sleep(0.5)
-            if ip in active_bots:
-                del active_bots[ip]
+            if bot_id in active_bots:
+                del active_bots[bot_id]
                 logger.info(f"{config.botName} process ended")
 
         asyncio.create_task(monitor())

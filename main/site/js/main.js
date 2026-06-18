@@ -7,3 +7,13 @@ const interval = setInterval(() => {
   taglineEl.innerHTML = tagline.slice(0, i) + '<span class="blink">_</span>';
   if (i >= tagline.length) clearInterval(interval);
 }, 45);
+
+(async () => {
+  try {
+    const r = await (await fetch("/api/mode", { cache: "no-store" })).json();
+    if (r && r.local) {
+      const link = document.getElementById("keys-link");
+      if (link) link.style.display = "";
+    }
+  } catch {}
+})();

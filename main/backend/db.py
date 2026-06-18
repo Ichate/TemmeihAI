@@ -3,7 +3,10 @@ from config import DB_FILE
 
 def load():
     if DB_FILE.exists():
-        return json.loads(DB_FILE.read_text())
+        try:
+            return json.loads(DB_FILE.read_text())
+        except Exception:
+            return {"bots": []}
     return {"bots": []}
 
 def save(data):
@@ -14,5 +17,8 @@ def append_bot(entry):
     data["bots"].append(entry)
     save(data)
 
-def recent_bots(n=10):
-    return load()["bots"][-n:]
+def recent_bots(n=10, owner=None):
+    bots = load()["bots"]
+    if owner is not None:
+        bots = [b for b in bots if b.get("owner") == owner]
+    return bots[-n:]

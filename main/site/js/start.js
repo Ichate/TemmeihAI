@@ -1,5 +1,45 @@
 const PROVIDERS = ["anthropic", "openai", "openrouter", "gemini"];
-const SESSION_OPTIONS = [5, 10, 15, 30];
+let SESSION_OPTIONS = [5, 10, 15, 30];
+let APP_MODE = "local";
+let IS_LOCAL = true;
+let savedKeys = [];
+
+function clientId() {
+  let id = localStorage.getItem("temmeih_client_id");
+  if (!id) {
+    const rnd = (crypto && crypto.randomUUID) ? crypto.randomUUID().replace(/-/g, "") : (Math.random().toString(36).slice(2) + Date.now().toString(36) + Math.random().toString(36).slice(2));
+    id = rnd.slice(0, 32);
+    localStorage.setItem("temmeih_client_id", id);
+  }
+  return id;
+}
+
+function api(path, opts = {}) {
+  const headers = Object.assign({}, opts.headers || {}, { "X-Client-Id": clientId() });
+  return fetch(path, Object.assign({}, opts, { headers }));
+}
+
+async function loadMode() {
+  try {
+    const r = await (await api("/api/mode", { cache: "no-store" })).json();
+    APP_MODE = r.mode || "local";
+    IS_LOCAL = !!r.local;
+  } catch {
+    APP_MODE = "local";
+    IS_LOCAL = true;
+  }
+  SESSION_OPTIONS = IS_LOCAL ? [5, 10, 15, 30, 60, 120] : [5, 10, 15, 30];
+}
+
+async function loadSavedKeys() {
+  if (!IS_LOCAL) { savedKeys = []; return; }
+  try {
+    const r = await (await api("/api/keys", { cache: "no-store" })).json();
+    savedKeys = (r && r.success && r.keys) ? r.keys : [];
+  } catch {
+    savedKeys = [];
+  }
+}
 const STATIC_STEPS = [
   { id: "ip",      title: "server address",    desc: "where should the bot connect?",  placeholder: "localhost",  def: "" },
   { id: "port",    title: "port",              desc: "usually 25565 for minecraft",     placeholder: "25565",      def: "25565" },
@@ -18,7 +58,7 @@ const el = id => document.getElementById(id);
 const fmt = s => `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
 
 async function getStatus() {
-  try { return await (await fetch("/api/status",{cache:"no-store"})).json(); }
+  try { return await (await api("/api/status",{cache:"no-store"})).json(); }
   catch { return {active:false}; }
 }
 
@@ -29,6 +69,8 @@ function showView(name) {
 
 async function init() {
   if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  await loadMode();
+  await loadSavedKeys();
   const s = await getStatus();
   paintDashboard(s);
   if (s.active) startTimer();
@@ -66,7 +108,7 @@ function paintDashboard(s) {
         <button class="pixel btn" id="stop-btn">stop bot</button>
       </div>
     `;
-    el("stop-btn").onclick = async () => { await fetch("/api/stop",{method:"POST"}); init(); };
+    el("stop-btn").onclick = async () => { await api("/api/stop",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:s.id||null})}); init(); };
   } else {
     wrap.innerHTML = `
       <div class="bot-status">
@@ -191,11 +233,27 @@ function renderProvider() {
 }
 
 function renderApiKey() {
+  const mine = savedKeys.filter(k => k.provider === vals.provider);
+  const savedBlock = (IS_LOCAL && mine.length) ? `
+    <div class="step-desc" style="margin-top:0.5rem">saved keys:</div>
+    <div class="provider-list">
+      ${mine.map(k => `<button class="pixel btn saved-key-btn" data-label="${k.label}">${k.label} (${k.masked})</button>`).join("")}
+    </div>
+    <div class="step-desc" style="font-size:0.85rem;opacity:0.7;margin:0.5rem 0">or paste a new one below</div>
+  ` : "";
+  const saveOpt = IS_LOCAL ? `
+    <label style="display:flex;align-items:center;gap:0.5rem;margin-top:0.75rem;font-size:0.9rem">
+      <input type="checkbox" id="save-key"> save this key as
+      <input class="input" type="text" id="save-label" placeholder="my key" style="flex:1;min-width:0" autocomplete="off">
+    </label>
+  ` : "";
   el("step-content").innerHTML = `
     <div class="step-icon pixel">${STATIC_STEPS.length+2}</div>
     <div class="step-title">${vals.provider} api key</div>
     <div class="step-desc">paste your api key, we'll verify and fetch models</div>
+    ${savedBlock}
     <input class="input" type="password" id="inp" value="" placeholder="sk-..." autocomplete="off">
+    ${saveOpt}
     <div class="buttons">
       <button class="pixel btn" id="bb">back</button>
       <button class="pixel btn primary" id="nb">verify</button>
@@ -204,13 +262,35 @@ function renderApiKey() {
   `;
   const inp = el("inp"); inp.focus();
   inp.onkeydown = e => { if(e.key==="Enter") el("nb").click(); };
+  document.querySelectorAll(".saved-key-btn").forEach(b => {
+    b.onclick = async () => {
+      const ks = el("ks");
+      ks.textContent = "loading saved key..."; ks.style.color = "var(--dim)";
+      try {
+        const v = await (await api("/api/keys/verify-saved",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({label:b.dataset.label})})).json();
+        if (v && v.success) { vals.apiKey = "saved:" + b.dataset.label; models = v.models || []; phase = "model"; render(); return; }
+        ks.textContent = (v && v.error) ? v.error : "couldn't load that saved key"; ks.style.color = "#ff6b6b";
+      } catch {
+        ks.textContent = "couldn't load that saved key"; ks.style.color = "#ff6b6b";
+      }
+    };
+  });
   el("nb").onclick = async () => {
     const key = inp.value.trim(); if (!key) return;
     const ks = el("ks"), btn = el("nb");
     btn.textContent = "verifying..."; btn.disabled = true; ks.textContent = "";
     try {
-      const r = await (await fetch("/api/verify-key",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({provider:vals.provider,apiKey:key})})).json();
-      if (r.success) { vals.apiKey=key; models=r.models||[]; phase="model"; render(); }
+      const r = await (await api("/api/verify-key",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({provider:vals.provider,apiKey:key})})).json();
+      if (r.success) {
+        vals.apiKey=key; models=r.models||[];
+        if (IS_LOCAL && el("save-key") && el("save-key").checked) {
+          const label = (el("save-label").value || "").trim();
+          if (label) {
+            try { await api("/api/keys/save",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({label,provider:vals.provider,apiKey:key})}); } catch {}
+          }
+        }
+        phase="model"; render();
+      }
       else { ks.textContent=`error: ${r.error}`; ks.style.color="#ff6b6b"; btn.textContent="verify"; btn.disabled=false; }
     } catch { ks.textContent="connection error"; ks.style.color="#ff6b6b"; btn.textContent="verify"; btn.disabled=false; }
   };
@@ -260,9 +340,9 @@ function renderSession() {
   el("step-content").innerHTML = `
     <div class="step-icon pixel">${STATIC_STEPS.length+5}</div>
     <div class="step-title">session length</div>
-    <div class="step-desc">how long should the bot stay? (max 30 min)</div>
+    <div class="step-desc">how long should the bot stay?${IS_LOCAL ? "" : " (max 30 min)"}</div>
     <div class="session-list">
-      ${SESSION_OPTIONS.map(m=>`<button class="pixel btn session-btn${vals.sessionMinutes===m?" primary":""}" data-m="${m}">${m} min</button>`).join("")}
+      ${SESSION_OPTIONS.map(m=>`<button class="pixel btn session-btn${vals.sessionMinutes===m?" primary":""}" data-m="${m}">${m>=60?(m/60)+" hr":m+" min"}</button>`).join("")}
     </div>
     ${navBtns("next")}
   `;
@@ -329,7 +409,7 @@ function renderCooldown(seconds) {
 async function createBot() {
   el("step-content").innerHTML = `<div class="status-header blink">connecting...</div>`;
   try {
-    const res = await fetch("/api/bot",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ip:vals.ip,port:parseInt(vals.port),version:vals.version,botName:vals.botName,apiKey:vals.apiKey,provider:vals.provider,model:vals.model,systemPrompt:vals.systemPrompt,sessionMinutes:vals.sessionMinutes,costCapUsd:vals.costCapUsd})});
+    const res = await api("/api/bot",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ip:vals.ip,port:parseInt(vals.port),version:vals.version,botName:vals.botName,apiKey:vals.apiKey,provider:vals.provider,model:vals.model,systemPrompt:vals.systemPrompt,sessionMinutes:vals.sessionMinutes,costCapUsd:vals.costCapUsd})});
     const r = await res.json();
     if (r.success) { showView("dashboard"); init(); return; }
     if (res.status === 429 && r.retry_after) { renderCooldown(r.retry_after); return; }
