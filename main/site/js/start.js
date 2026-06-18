@@ -43,14 +43,14 @@ async function loadSavedKeys() {
 const STATIC_STEPS = [
   { id: "ip",      title: "server address",    desc: "where should the bot connect?",  placeholder: "localhost",  def: "" },
   { id: "port",    title: "port",              desc: "usually 25565 for minecraft",     placeholder: "25565",      def: "25565" },
-  { id: "version", title: "minecraft version", desc: "match your server version",       placeholder: "1.20.4",     def: "1.20.4" },
+  { id: "version", title: "minecraft version", desc: "your server version, or 'auto' to detect it (works with viaversion)", placeholder: "auto", def: "auto" },
   { id: "botName", title: "bot name",          desc: "what should we call it?",         placeholder: "temmeihBot", def: "temmeihBot" },
 ];
 
 let step = 0;
 let phase = "static";
 let models = [];
-let vals = { ip: "", port: "25565", version: "1.20.4", botName: "temmeihBot", apiKey: "", provider: "", model: "", systemPrompt: "", sessionMinutes: 5, costCapUsd: 0 };
+let vals = { ip: "", port: "25565", version: "auto", botName: "temmeihBot", apiKey: "", provider: "", model: "", systemPrompt: "", sessionMinutes: 5, costCapUsd: 0 };
 let timerInterval = null;
 let cooldownInterval = null;
 

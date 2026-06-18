@@ -73,14 +73,23 @@ export function handleDisconnect(reason) {
   }, RECONNECT_DELAY_MS);
 }
 
+function isAutoVersion(v) {
+  if (!v) return true;
+  const s = String(v).trim().toLowerCase();
+  return s === "" || s === "auto" || s === "any" || s === "false";
+}
+
 export function connect() {
-  log.info(`connecting to ${args.ip}:${args.port}...`);
-  const bot = mineflayer.createBot({
+  const auto = isAutoVersion(args.version);
+  log.info(`connecting to ${args.ip}:${args.port}${auto ? " (auto-detect version)" : ` (${args.version})`}...`);
+  const opts = {
     host: args.ip,
     port: args.port,
     username: args.botName,
-    version: args.version,
-  });
+  };
+  if (!auto) opts.version = args.version;
+  else opts.version = false;
+  const bot = mineflayer.createBot(opts);
   setBot(bot);
   attachHandlers(bot);
 }

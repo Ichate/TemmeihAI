@@ -89,8 +89,9 @@ def validate(config):
         return "invalid ip characters"
     if config.port < 1 or config.port > 65535:
         return "invalid port"
-    if not re.match(r"^\d+\.\d+(\.\d+)?$", config.version):
-        return "invalid version"
+    if (config.version or "").strip().lower() not in ("", "auto", "any"):
+        if not re.match(r"^\d+\.\d+(\.\d+)?$", config.version):
+            return "invalid version"
     if not config.botName or len(config.botName) > MAX_BOT_NAME_LEN:
         return "invalid bot name"
     if not re.match(r"^[a-zA-Z0-9_]+$", config.botName):
