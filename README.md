@@ -167,6 +167,17 @@ python main.py
 
 open http://localhost:3000
 
+### docker
+
+there's a Dockerfile in the root that bundles python and node together, so you don't have to set either up yourself.
+
+```bash
+docker build -t temmeih .
+docker run -p 3000:3000 temmeih
+```
+
+open http://localhost:3000. it builds in production mode by default; pass `-e APP_MODE=local` to run it as a personal local instance instead. on a host like easypanel or railway just point it at the repo, it picks up the Dockerfile and exposes port 3000 on its own.
+
 ## local vs production
 
 there are two ways to run it, set by the `APP_MODE` env var.
