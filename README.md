@@ -14,27 +14,27 @@ invite a bot to your server, it joins and just lives there. walks around on its 
   <tr>
     <td align="center" width="50%">
       <img src="https://cdn.hackclub.com/019ecf5c-06e9-7d01-ad6f-91ce5a47e122/image.png" width="100%"><br>
-      <sub><b>mining</b> — breaking blocks with the right tool</sub>
+      <sub><b>mining</b>, breaking blocks with the right tool</sub>
     </td>
     <td align="center" width="50%">
       <img src="https://cdn.hackclub.com/019ed569-7489-76c3-9419-d328c3a4a7ca/image.png" width="100%"><br>
-      <sub><b>smelting</b> — ore into ingots in a furnace</sub>
+      <sub><b>smelting</b>, ore into ingots in a furnace</sub>
     </td>
   </tr>
   <tr>
     <td align="center" width="50%">
       <img src="https://cdn.hackclub.com/019ed56e-d377-712f-a5da-5a8b3c5661e5/image.png" width="100%"><br>
-      <sub><b>crafting</b> — working out the whole recipe chain</sub>
+      <sub><b>crafting</b>, working out the whole recipe chain</sub>
     </td>
     <td align="center" width="50%">
       <img src="https://cdn.hackclub.com/019ec6be-c3c8-7cca-8654-0fe0cf8d9f6e/image.png" width="100%"><br>
-      <sub><b>combat</b> — fighting back when something attacks</sub>
+      <sub><b>combat</b>, fighting back when something attacks</sub>
     </td>
   </tr>
   <tr>
     <td align="center" colspan="2">
       <img src="https://cdn.hackclub.com/019ebc99-af3f-7ba2-81b8-81f1821a37dd/image.png" width="50%"><br>
-      <sub><b>eating</b> — keeping itself fed when hunger drops</sub>
+      <sub><b>walking</b>, walking towards the player</sub>
     </td>
   </tr>
 </table>
