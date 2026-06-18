@@ -8,6 +8,37 @@ ai bots that actually play minecraft with you.
 
 invite a bot to your server, it joins and just lives there. walks around on its own, talks to people in chat, reacts to stuff happening around it. eats when it's hungry, panics when it's at 2 hearts, comments when on world updates. tell it to come over or follow you and it actually walks to you, tell it to kill a mob or guard you and it fights, tell it to mine the ore or chop the tree or stash the loot and it does, tell it to make a pickaxe and it works out the whole chain. it fishes, sleeps, trades, and flies after you on an elytra. you pick the provider (anthropic / openai / openrouter / gemini) and watch the token usage and cost tick up live on the dashboard.
 
+## in action
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="https://cdn.hackclub.com/019ecf5c-06e9-7d01-ad6f-91ce5a47e122/image.png" width="100%"><br>
+      <sub><b>mining</b> — breaking blocks with the right tool</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="https://cdn.hackclub.com/019ed569-7489-76c3-9419-d328c3a4a7ca/image.png" width="100%"><br>
+      <sub><b>smelting</b> — ore into ingots in a furnace</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="https://cdn.hackclub.com/019ed56e-d377-712f-a5da-5a8b3c5661e5/image.png" width="100%"><br>
+      <sub><b>crafting</b> — working out the whole recipe chain</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="https://cdn.hackclub.com/019ec6be-c3c8-7cca-8654-0fe0cf8d9f6e/image.png" width="100%"><br>
+      <sub><b>combat</b> — fighting back when something attacks</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2">
+      <img src="https://cdn.hackclub.com/019ebc99-af3f-7ba2-81b8-81f1821a37dd/image.png" width="50%"><br>
+      <sub><b>eating</b> — keeping itself fed when hunger drops</sub>
+    </td>
+  </tr>
+</table>
+
 ## features
 
 **chat**
