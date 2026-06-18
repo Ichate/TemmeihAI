@@ -11,7 +11,7 @@ BOLD = "\033[1m"
 
 def _log(icon, color, msg):
     t = datetime.now().strftime("%H:%M:%S")
-    print(f"{DIM}{t}{RESET} {color}{icon}{RESET} {msg}")
+    print(f"{DIM}{t}{RESET} {color}{icon}{RESET} {msg}", flush=True)
 
 def info(msg): _log("*", CYAN, msg)
 def success(msg): _log("+", GREEN, msg)

@@ -369,6 +369,9 @@ async def create_bot(config: BotConfig, request: Request):
         asyncio.create_task(monitor())
         logger.success(f"{config.botName} spawned")
         return {"success": True}
+    except FileNotFoundError as e:
+        logger.error(f"failed to spawn bot, node missing: {e}")
+        return JSONResponse({"success": False, "error": "node is not installed on the server"}, status_code=500)
     except Exception as e:
-        logger.error(f"failed to spawn bot: {e}")
-        return JSONResponse({"success": False, "error": "internal error"}, status_code=500)
+        logger.error(f"failed to spawn bot: {type(e).__name__}: {e}")
+        return JSONResponse({"success": False, "error": f"spawn failed: {type(e).__name__}"}, status_code=500)
