@@ -46,9 +46,12 @@ export async function mineBlock(block) {
   const reached = await reachBlock(block);
   if (!reached.ok) return reached;
 
-  const current = bot.blockAt(block.position);
-  if (!current || current.name !== block.name) {
+  let current = bot.blockAt(block.position);
+  if (!current || current.name === "air" || current.name === "cave_air") {
     return { ok: false, reason: "the block's not there anymore" };
+  }
+  if (current.name !== block.name) {
+    current = bot.blockAt(block.position) || current;
   }
 
   await equipToolFor(current);

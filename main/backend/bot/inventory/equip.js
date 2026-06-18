@@ -12,14 +12,46 @@ export async function equipNamed(word) {
   const matches = findItems(word);
   if (!matches.length) return { ok: false, reason: `i don't have any ${word}` };
   const best = bestByTier(matches);
-  const dest = armorDestFor(best.name) || "hand";
+  let dest = armorDestFor(best.name) || "hand";
+  if (/shield/.test(best.name)) dest = "off-hand";
   try {
     await bot.equip(best, dest);
-    return { ok: true, reason: `holding ${best.name.replace(/_/g, " ")}` };
+    const where = dest === "off-hand" ? "in my off hand" : (dest === "hand" ? "" : "on");
+    return { ok: true, reason: `holding ${best.name.replace(/_/g, " ")}${where ? " " + where : ""}` };
   } catch (e) {
     log.error(`equip failed: ${e.message}`);
     return { ok: false, reason: `couldn't equip ${word}` };
   }
+}
+
+export async function equipLoadout(words) {
+  const bot = getBot();
+  if (!bot) return { ok: false, reason: "not in game" };
+  const list = Array.isArray(words) ? words : [words];
+  const done = [];
+  const failed = [];
+  let didMain = false;
+  for (const w of list) {
+    const matches = findItems(w);
+    if (!matches.length) { failed.push(w); continue; }
+    const best = bestByTier(matches);
+    let dest = armorDestFor(best.name);
+    if (!dest) dest = /shield/.test(best.name) ? "off-hand" : "hand";
+    if (dest === "hand") {
+      if (didMain) continue;
+      didMain = true;
+    }
+    try {
+      await bot.equip(best, dest);
+      done.push(best.name.replace(/_/g, " "));
+    } catch (e) {
+      log.warn(`loadout equip ${w} failed: ${e.message}`);
+      failed.push(w);
+    }
+  }
+  if (!done.length) return { ok: false, reason: `couldn't equip ${failed.join(", ") || "any of that"}` };
+  const note = failed.length ? `, no ${failed.join(", ")}` : "";
+  return { ok: true, reason: `equipped ${done.join(" and ")}${note}` };
 }
 
 export async function equipBestWeapon() {

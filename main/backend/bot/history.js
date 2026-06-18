@@ -1,4 +1,4 @@
-const MAX = 40;
+const MAX = 16;
 
 export class History {
   constructor() {

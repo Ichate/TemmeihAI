@@ -22,13 +22,17 @@ function narrate(text, tag) {
 
 function hasElytraEquipped() {
   const bot = getBot();
-  if (!bot || !bot.inventory) return false;
+  if (!bot) return false;
   try {
-    const torso = bot.inventory.slots[6];
-    return !!(torso && /elytra/.test(torso.name));
-  } catch {
-    return false;
-  }
+    const torso = bot.inventory && bot.inventory.slots ? bot.inventory.slots[6] : null;
+    if (torso && /elytra/.test(torso.name)) return true;
+    if (bot.entity && bot.entity.equipment) {
+      for (const e of bot.entity.equipment) {
+        if (e && /elytra/.test(e.name || "")) return true;
+      }
+    }
+  } catch {}
+  return false;
 }
 
 function hasElytraItem() {
@@ -60,10 +64,15 @@ function targetEntity() {
 function targetIsFlying(ent) {
   if (!ent) return false;
   if (ent.elytraFlying === true) return true;
+  if (ent.metadata) {
+    for (const m of ent.metadata) {
+      if (m && typeof m === "number" && (m & 0x80)) return true;
+    }
+  }
   const v = ent.velocity;
   const airborne = ent.onGround === false;
-  const fast = v && (Math.abs(v.y) > 0.2 || Math.sqrt(v.x * v.x + v.z * v.z) > 0.35);
-  return airborne && fast;
+  const fast = v && (Math.abs(v.y) > 0.12 || Math.sqrt(v.x * v.x + v.z * v.z) > 0.25);
+  return airborne && !!fast;
 }
 
 function hasFirework() {

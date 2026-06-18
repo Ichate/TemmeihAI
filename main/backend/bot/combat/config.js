@@ -17,8 +17,8 @@ export const CRIT_JUMP_GAP_MS = 900;
 export const STRAFE_SWITCH_MS = 1400;
 
 export const FLEE_HEALTH = 7;
-export const HEAL_HEALTH = 12;
-export const EAT_HUNGER = 16;
+export const HEAL_HEALTH = 8;
+export const EAT_HUNGER = 14;
 export const TOTEM_HEALTH = 6;
 
 export const ACQUIRE_RANGE = 22;

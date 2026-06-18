@@ -4,7 +4,7 @@ import {
 } from "./read.js";
 import { itemValue, isValuable } from "./value.js";
 import {
-  equipNamed, equipBestWeapon, equipBestTool, equipArmorSet, unequipHand,
+  equipNamed, equipBestWeapon, equipBestTool, equipArmorSet, unequipHand, equipLoadout,
 } from "./equip.js";
 import { dropHeld, dropItem, dropAll, dropEverything, giveToPlayer } from "./transfer.js";
 import {
@@ -29,6 +29,7 @@ export const inventory = {
   itemValue,
   isValuable,
   equipNamed,
+  equipLoadout,
   equipBestWeapon,
   equipBestTool,
   equipArmorSet,

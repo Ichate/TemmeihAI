@@ -314,17 +314,24 @@ async function creeperTick(target, dist) {
 async function meleeTick(target, dist) {
   const bot = getBot();
   if (dist > MELEE_RANGE) {
-    combat.chasing = true;
     if (!chaseSafe(target)) {
       if (bot.pathfinder) { try { bot.pathfinder.setGoal(null); } catch {} }
+      combat.chasing = false;
+      combat.chaseGoalId = null;
       narrate("not following it into that", "hazard");
       await faceTarget(target);
       return;
     }
-    try {
-      const goal = makeGoalFollow(target, MELEE_RANGE - 1);
-      if (goal && bot.pathfinder) bot.pathfinder.setGoal(goal, true);
-    } catch {}
+    setSprint(true);
+    const tid = target.id != null ? target.id : combat.targetName;
+    if (combat.chaseGoalId !== tid || !bot.pathfinder || !bot.pathfinder.isMoving()) {
+      try {
+        const goal = makeGoalFollow(target, MELEE_RANGE - 1);
+        if (goal && bot.pathfinder) bot.pathfinder.setGoal(goal, true);
+        combat.chaseGoalId = tid;
+      } catch {}
+    }
+    combat.chasing = true;
     if (dist <= GAP_CLOSE_RANGE && targetFleeing(target)) {
       gapClose(target);
     } else {
@@ -333,6 +340,7 @@ async function meleeTick(target, dist) {
     await faceTarget(target);
   } else {
     combat.chasing = false;
+    combat.chaseGoalId = null;
     stopGapClose();
     if (bot.pathfinder && bot.pathfinder.isMoving()) {
       try { bot.pathfinder.setGoal(null); } catch {}

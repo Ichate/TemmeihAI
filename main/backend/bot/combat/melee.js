@@ -81,11 +81,12 @@ export async function swingAt(target) {
   const mace = holdingMace();
   if (mace && bot.entity.onGround && Date.now() - lastCritJump >= CRIT_JUMP_GAP_MS) {
     await maceSmash();
-    await new Promise(r => setTimeout(r, 260));
+    await new Promise(r => setTimeout(r, 320));
     await faceTarget(target);
   } else if (!isSpamStyle() && wantsCrit() && bot.entity.onGround) {
     await critJump();
-    await new Promise(r => setTimeout(r, 90));
+    await new Promise(r => setTimeout(r, 250));
+    await faceTarget(target);
   }
 
   try {

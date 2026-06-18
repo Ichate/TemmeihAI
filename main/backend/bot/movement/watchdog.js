@@ -27,6 +27,8 @@ async function check() {
   if (!bot || !bot.entity) return;
   if (move.mode === MODE.IDLE || !move.active) return;
 
+  checkStuck(bot);
+
   if (move.mode === MODE.FLEE && move.fleeUntil && Date.now() > move.fleeUntil) {
     await resetToIdle("flee duration elapsed");
     return;
@@ -39,6 +41,49 @@ async function check() {
 
   if (move.mode === MODE.FOLLOW || move.mode === MODE.ESCORT || move.mode === MODE.TAIL) {
     await checkFollow(bot);
+  }
+}
+
+function checkStuck(bot) {
+  if (!bot.pathfinder || !bot.pathfinder.isMoving()) {
+    move.stuckTicks = 0;
+    return;
+  }
+  const pos = bot.entity.position;
+  const now = Date.now();
+  if (move.lastSample) {
+    const moved = Math.sqrt(
+      (pos.x - move.lastSample.x) ** 2 +
+      (pos.y - move.lastSample.y) ** 2 +
+      (pos.z - move.lastSample.z) ** 2
+    );
+    if (moved < 0.15) {
+      move.stuckTicks = (move.stuckTicks || 0) + 1;
+    } else {
+      move.stuckTicks = 0;
+    }
+  }
+  move.lastSample = { x: pos.x, y: pos.y, z: pos.z };
+
+  if (move.stuckTicks >= 2) {
+    try {
+      bot.setControlState("jump", true);
+      const inWater = bot.entity.isInWater;
+      setTimeout(() => { try { bot.setControlState("jump", false); } catch {} }, inWater ? 500 : 250);
+      if (!inWater) {
+        bot.setControlState("forward", true);
+        setTimeout(() => { try { bot.setControlState("forward", false); } catch {} }, 300);
+      }
+    } catch {}
+    if (move.stuckTicks >= 6) {
+      move.stuckTicks = 0;
+      log.info("movement: badly stuck, recomputing path");
+      try {
+        const goal = bot.pathfinder.goal;
+        bot.pathfinder.setGoal(null);
+        setTimeout(() => { try { if (goal) bot.pathfinder.setGoal(goal, true); } catch {} }, 150);
+      } catch {}
+    }
   }
 }
 

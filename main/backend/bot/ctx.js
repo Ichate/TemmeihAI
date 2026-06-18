@@ -1,4 +1,9 @@
-const [ip, port, version, botName, apiKey, provider, model, systemPrompt, sessionSecondsArg] = process.argv.slice(2);
+const [ip, port, version, botName, apiKeyArg, provider, model, systemPrompt, sessionSecondsArg] = process.argv.slice(2);
+
+const apiKey = process.env.BOT_API_KEY || apiKeyArg;
+if (process.env.BOT_API_KEY) {
+  try { delete process.env.BOT_API_KEY; } catch {}
+}
 
 export const args = {
   ip,

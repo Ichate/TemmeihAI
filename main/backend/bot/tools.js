@@ -264,11 +264,14 @@ export const TOOL_DEFS = [
   },
   {
     name: "hold_item",
-    description: "Equip/hold an item in your hand. Picks the best one you have of that kind. Use for 'hold a sword', 'get your pickaxe out', 'hold the bread'.",
+    description: "Equip/hold one or more items. A shield goes to the off hand automatically, so you can hold a sword AND a shield at once. Picks the best of each kind. Use for 'hold a sword', 'hold a sword and shield', 'get your pickaxe out'.",
     parameters: {
       type: "object",
-      properties: { item: { type: "string", description: "what to hold, e.g. sword, pickaxe, bread, torch" } },
-      required: ["item"],
+      properties: {
+        item: { type: "string", description: "single item to hold, e.g. sword, pickaxe, bread" },
+        items: { type: "array", items: { type: "string" }, description: "multiple items to equip at once, e.g. ['sword','shield']" },
+      },
+      required: [],
     },
   },
   {
@@ -894,16 +897,17 @@ export async function executeTool(name, input) {
       case "dive":
         return await movement.dive(Number.isFinite(a.seconds) ? a.seconds : null);
       case "hold_item": {
-        if (!a.item) return { ok: false, reason: "what should i hold?" };
-        const w = a.item.toLowerCase();
-        if (/^(sword|axe|weapon)$/.test(w)) {
-          if (w === "weapon") return await inventory.equipBestWeapon();
-        }
+        const many = Array.isArray(a.items) ? a.items.filter(Boolean) : null;
+        if (many && many.length > 1) return await inventory.equipLoadout(many);
+        const single = a.item || (many && many[0]);
+        if (!single) return { ok: false, reason: "what should i hold?" };
+        const w = single.toLowerCase();
+        if (w === "weapon") return await inventory.equipBestWeapon();
         if (/^(pickaxe|pick|shovel|spade|hoe)$/.test(w)) {
           const kind = w === "pick" ? "pickaxe" : (w === "spade" ? "shovel" : w);
           return await inventory.equipBestTool(kind);
         }
-        return await inventory.equipNamed(a.item);
+        return await inventory.equipNamed(single);
       }
       case "put_away":
         return await inventory.unequipHand();
